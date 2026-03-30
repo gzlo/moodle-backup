@@ -1,0 +1,215 @@
+# =============================================================================
+# CONFIGURACIÓN MOODLE - TEMPLATE
+# =============================================================================
+#
+# Este archivo contiene todas las variables necesarias para ejecutar
+# backups de una instalación específica de Moodle.
+#
+# Para crear una nueva configuración:
+# 1. Copia este archivo: cp moodle.config.example mi-instalacion.config
+# 2. Edita las variables según tu instalación
+# 3. Habilita la configuración: ./moodlesite enable mi-instalacion
+#
+# =============================================================================
+
+# =============================================================================
+# INFORMACIÓN BÁSICA DE LA INSTALACIÓN
+# =============================================================================
+
+# Nombre descriptivo de la instalación (sin espacios, solo letras, números, guiones)
+# Ejemplos: "principal", "campus-virtual", "educacion-continua", "moodle-test"
+INSTANCE_NAME="mi-instalacion"
+
+# Descripción libre de la instalación
+INSTANCE_DESCRIPTION="Mi Campus Virtual - Sistema LMS"
+
+# Versión de Moodle instalada (informativo)
+MOODLE_VERSION="4.2"
+
+# =============================================================================
+# DIRECTORIOS
+# =============================================================================
+
+# Directorio de la aplicación Moodle (donde está el código fuente)
+# Ejemplos comunes:
+#   - /var/www/html/moodle
+#   - /home/usuario/public_html/moodle
+#   - /opt/moodle
+SRC_APP="/var/www/html/moodle"
+
+# Directorio de moodledata (donde Moodle guarda archivos subidos)
+# Debe estar FUERA del directorio web por seguridad
+# Ejemplos comunes:
+#   - /var/moodledata
+#   - /home/usuario/moodledata
+#   - /opt/moodledata
+SRC_DATA="/var/moodledata"
+
+# Directorio base para guardar backups locales
+# Se creará automáticamente si no existe
+# Ejemplos:
+#   - /var/backups/moodle
+#   - /home/usuario/backups
+#   - /backup/moodle
+BACKUP_BASE="/var/backups/moodle"
+
+# =============================================================================
+# BASE DE DATOS
+# =============================================================================
+
+# Nombre de la base de datos de Moodle
+DB_NAME="moodle_database"
+
+# Usuario de base de datos (debe tener permisos de lectura completa)
+DB_USER="moodle_user"
+
+# Password de base de datos
+# IMPORTANTE: Cambia este password por uno seguro específico para tu instalación
+DB_PASSWORD="CAMBIAR_POR_PASSWORD_SEGURO"
+
+# Host de la base de datos
+# Ejemplos: "localhost", "127.0.0.1", "db.midominio.com"
+DB_HOST="localhost"
+
+# Puerto de base de datos (opcional, usa default si está vacío)
+# MySQL/MariaDB default: 3306
+# PostgreSQL default: 5432
+DB_PORT=""
+
+# =============================================================================
+# CONFIGURACIÓN DE GOOGLE DRIVE (RCLONE)
+# =============================================================================
+
+# Nombre del remote configurado en rclone
+# Para configurar: rclone config
+# Proveedores soportados: Google Drive, Dropbox, AWS S3, Azure, etc.
+GDRIVE_REMOTE="gdrive"
+
+# Ruta base en el almacenamiento remoto donde guardar backups
+# Se creará automáticamente: GDRIVE_BASE_PATH/INSTANCE_NAME/fecha/
+# Ejemplo final: moodle_backups/mi-instalacion/15-10-2025/
+GDRIVE_BASE_PATH="moodle_backups"
+
+# =============================================================================
+# CONFIGURACIÓN DE PHP
+# =============================================================================
+
+# Ruta al ejecutable PHP CLI
+# Ejemplos comunes:
+#   - /usr/bin/php
+#   - /usr/local/bin/php
+#   - /opt/php/bin/php
+PHP_CLI="/usr/bin/php"
+
+# =============================================================================
+# NOTIFICACIONES POR EMAIL
+# =============================================================================
+
+# Email donde enviar notificaciones de estado de backup
+# Ejemplos: "admin@midominio.com", "sysadmin@empresa.com"
+NOTIFICATION_EMAIL="admin@midominio.com"
+
+# Nombre identificativo del servidor (aparece en emails)
+# Ejemplos: "servidor-principal", "moodle-prod", "campus-virtual"
+SERVER_NAME="mi-servidor-moodle"
+
+# Usuario del sistema bajo el cual corre Moodle (para permisos)
+# Ejemplos: "www-data", "apache", "nginx", "usuario"
+SYSTEM_USER="www-data"
+
+# =============================================================================
+# CONFIGURACIÓN DE CRON (AUTOMATIZACIÓN)
+# =============================================================================
+
+# Periodicidad de backups automáticos
+# Opciones disponibles:
+#   1 = Diario (todos los días)
+#   2 = Cada 2 días
+#   3 = Cada 5 días
+#   4 = Semanal (domingos)
+#   5 = Quincenal (1ro y 15 de cada mes)
+#   6 = Mensual (día 1 de cada mes)
+#   7 = Custom (especificar expresión cron en CRON_CUSTOM)
+CRON_SCHEDULE="2"
+
+# Hora de ejecución de backups (formato 24h: HH:MM)
+# Recomendado: horarios de baja actividad (madrugada)
+CRON_TIME="02:00"
+
+# Expresión cron personalizada (solo si CRON_SCHEDULE="7")
+# Ejemplos:
+#   "0 3 */3 * *"     = Cada 3 días a las 3:00 AM
+#   "0 2 * * 1,4"     = Lunes y jueves a las 2:00 AM
+#   "30 1 1,15 * *"   = Día 1 y 15 de cada mes a la 1:30 AM
+CRON_CUSTOM=""
+
+# =============================================================================
+# CONFIGURACIÓN AVANZADA DE BACKUP
+# =============================================================================
+
+# Activar/desactivar backup de moodledata (true/false)
+# moodledata puede ser muy grande (GB/TB), set false si solo quieres BD+App
+BACKUP_MOODLEDATA="true"
+
+# Activar/desactivar streaming a nube (true/false)
+# Si es false, solo hace backup local
+STREAM_TO_GDRIVE="true"
+
+# Archivos/directorios a excluir del backup de moodledata
+# Separados por espacios, usa patrones como "cache/* sessions/*"
+MOODLEDATA_EXCLUDES="cache/* localcache/* temp/* sessions/* trashdir/* backup/* *.tmp *.lock"
+
+# Número de copias de backup a mantener localmente
+# El sistema automáticamente elimina backups antiguos
+# Recomendado: 2-3 para instalaciones grandes, 5-7 para pequeñas
+RETENTION_COPIES="3"
+
+# =============================================================================
+# CONFIGURACIÓN DE MODO MANTENIMIENTO
+# =============================================================================
+
+# Mensaje personalizado durante modo mantenimiento
+MAINTENANCE_MESSAGE="Sistema en mantenimiento - Backup en progreso"
+
+# Tiempo máximo de espera para activar modo mantenimiento (segundos)
+MAINTENANCE_TIMEOUT="300"
+
+# =============================================================================
+# CONFIGURACIÓN DE COMPRESIÓN
+# =============================================================================
+
+# Nivel de compresión para archivos (1-9, donde 9 es máxima compresión)
+# Niveles altos usan más CPU pero generan archivos más pequeños
+COMPRESSION_LEVEL="6"
+
+# Algoritmo de compresión para moodledata: "gzip", "bzip2", "xz"
+# gzip: Rápido, compresión moderada
+# bzip2: Más lento, mejor compresión  
+# xz: Más lento, mejor compresión
+COMPRESSION_ALGORITHM="gzip"
+
+# =============================================================================
+# CONFIGURACIÓN DE LOGGING
+# =============================================================================
+
+# Nivel de log: DEBUG, INFO, WARNING, ERROR
+LOG_LEVEL="INFO"
+
+# Mantener archivos de log por X días (0 = mantener siempre)
+LOG_RETENTION_DAYS="30"
+
+# Activar verificación de integridad de archivos (true/false)
+# Útil para detectar corrupción pero consume más tiempo
+VERIFY_INTEGRITY="false"
+
+# =============================================================================
+# CONFIGURACIÓN EXPERIMENTAL
+# =============================================================================
+
+# Usar compresión incremental (experimental, true/false)
+# Solo incluye archivos modificados desde último backup
+INCREMENTAL_BACKUP="false"
+
+# Activar backup paralelo de moodledata (experimental, true/false)
+# Puede acelerar el proceso pero usa más recursos
+PARALLEL_BACKUP="false"

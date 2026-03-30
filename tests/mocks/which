@@ -1,6 +1,0 @@
-#!/bin/bash
-if [[ "$1" == "plesk" ]]; then
-    echo "/usr/local/psa/bin/plesk"
-    exit 0
-fi
-exit 1

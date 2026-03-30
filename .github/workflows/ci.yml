@@ -1,253 +1,44 @@
-name: CI/CD Pipeline
+name: CI
 
 on:
-    push:
-        branches: [main, develop]
-    pull_request:
-        branches: [main, develop]
-    release:
-        types: [published]
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-    lint:
-        name: Lint and Code Quality
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
-              with:
-                  lfs: true # Asegurar que Git LFS funcione si es necesario
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ShellCheck
+        run: sudo apt-get install -y shellcheck
+      - name: Run ShellCheck
+        run: shellcheck -x bin/mb lib/*.sh scripts/*.sh
 
-            - name: Install ShellCheck
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y shellcheck
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install BATS
+        run: |
+          git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats
+          cd /tmp/bats && sudo ./install.sh /usr/local
+      
+      - name: Run Unit Tests
+        run: bats tests/unit/
+      
+      - name: Run Integration Tests
+        run: bats tests/integration/
 
-            - name: Run basic shellcheck
-              run: |
-                  set -e  # Fallar en cualquier error
-                  
-                  echo "=== Verificando entorno ==="
-                  pwd
-                  ls -la | head -10
-                  
-                  echo "=== Verificando archivos shell ==="
-                  if find . -name "*.sh" -type f | head -5; then
-                    echo "Archivos .sh encontrados"
-                  else
-                    echo "No se encontraron archivos .sh"
-                    exit 1
-                  fi
-                  
-                  echo "=== Verificando ShellCheck ==="
-                  if command -v shellcheck >/dev/null 2>&1; then
-                    echo "ShellCheck disponible: $(shellcheck --version | grep version)"
-                    
-                    echo "=== Ejecutando ShellCheck en archivos principales ==="
-                    for script in install.sh moodle_backup.sh web-install.sh scripts/lint-simple.sh; do
-                      if [ -f "$script" ]; then
-                        echo "Verificando: $script"
-                        shellcheck "$script" || echo "ShellCheck encontró problemas en $script"
-                      fi
-                    done
-                  else
-                    echo "ShellCheck no disponible, ejecutando verificación básica"
-                  fi
-                  
-                  echo "=== Verificando sintaxis bash básica ==="
-                  bash_errors=0
-                  for script in install.sh moodle_backup.sh web-install.sh; do
-                    if [ -f "$script" ]; then
-                      echo "Verificando sintaxis: $script"
-                      if ! bash -n "$script" 2>/dev/null; then
-                        echo "ERROR: Error de sintaxis en $script"
-                        bash_errors=$((bash_errors + 1))
-                      fi
-                    fi
-                  done
-                  
-                  if [ $bash_errors -gt 0 ]; then
-                    echo "Se encontraron $bash_errors errores de sintaxis críticos"
-                    exit 1
-                  fi
-                  
-                  echo "✅ Verificación básica completada exitosamente"
-
-    test:
-        name: Run Tests
-        runs-on: ubuntu-latest
-        strategy:
-            matrix:
-                bash-version: ['5.0'] # Simplificado para reducir jobs
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
-              with:
-                  lfs: true  # Asegurar que Git LFS funcione si es necesario
-
-            - name: Verify test structure
-              run: |
-                  echo "=== Verificando estructura de tests ==="
-                  ls -la tests/ 2>/dev/null || echo "Directorio tests no encontrado"
-
-                  echo "=== Verificando archivos de test ==="
-                  find tests/ -name "*.bats" -o -name "*.sh" 2>/dev/null | head -10 || echo "No se encontraron archivos de test específicos"
-
-            - name: Install BATS (optional)
-              run: |
-                  echo "=== Instalando BATS ==="
-                  if git clone https://github.com/bats-core/bats-core.git /tmp/bats-core 2>/dev/null; then
-                    cd /tmp/bats-core
-                    if sudo ./install.sh /usr/local 2>/dev/null; then
-                      echo "BATS instalado exitosamente"
-                      bats --version || echo "Error verificando versión de BATS"
-                    else
-                      echo "Error instalando BATS, continuando sin él"
-                    fi
-                  else
-                    echo "Error clonando BATS, continuando sin él"
-                  fi
-
-            - name: Setup BATS helpers (optional)
-              run: |
-                  echo "=== Configurando BATS helpers ==="
-                  mkdir -p tests/helpers || true
-                  
-                  # Solo intentar si BATS está disponible
-                  if command -v bats >/dev/null 2>&1; then
-                    for helper in bats-support bats-assert bats-file; do
-                      if [ ! -d "tests/helpers/$helper" ]; then
-                        echo "Clonando $helper..."
-                        git clone "https://github.com/bats-core/$helper.git" "tests/helpers/$helper" 2>/dev/null || echo "Error clonando $helper"
-                      fi
-                    done
-                  else
-                    echo "BATS no disponible, omitiendo helpers"
-                  fi
-
-            - name: Run basic tests
-              run: |
-                  echo "=== Verificando estructura de tests ==="
-                  if [ -d "tests" ]; then
-                    echo "Directorio tests encontrado"
-                    ls -la tests/ | head -10
-                  else
-                    echo "WARNING: Directorio tests no encontrado"
-                  fi
-                  
-                  echo "=== Verificando archivos de test ==="
-                  test_files=$(find tests/ -name "*.sh" -o -name "*.bats" 2>/dev/null | wc -l || echo "0")
-                  echo "Archivos de test encontrados: $test_files"
-                  
-                  echo "=== Verificando BATS ==="
-                  if command -v bats >/dev/null 2>&1; then
-                    echo "BATS disponible: $(bats --version 2>/dev/null || echo 'versión no disponible')"
-                    
-                    # Ejecutar tests BATS si están disponibles
-                    if find tests/ -name "*.bats" -type f 2>/dev/null | head -1 >/dev/null; then
-                      echo "Ejecutando algunos tests BATS..."
-                      find tests/ -name "*.bats" -type f 2>/dev/null | head -2 | while read -r bats_file; do
-                        echo "Ejecutando: $bats_file"
-                        bats "$bats_file" 2>/dev/null || echo "Test falló o se saltó: $bats_file"
-                      done
-                    fi
-                  else
-                    echo "BATS no disponible, ejecutando verificación básica"
-                  fi
-                  
-                  echo "=== Verificando runners de test ==="
-                  for runner in tests/run-all-tests.sh tests/run-tests-simple.sh tests/run-tests.sh; do
-                    if [ -f "$runner" ]; then
-                      echo "Verificando sintaxis: $runner"
-                      if bash -n "$runner" 2>/dev/null; then
-                        echo "✅ Sintaxis OK: $runner"
-                      else
-                        echo "⚠️  Posible problema de sintaxis: $runner"
-                      fi
-                    fi
-                  done
-                  
-                  echo "✅ Verificación de tests completada (modo permisivo)"
-
-            - name: Upload test results (optional)
-              if: always()
-              run: |
-                  echo "=== Resultados de tests ==="
-                  ls -la tests/results/ || echo "No hay resultados específicos"
-                  ls -la tests/coverage/ || echo "No hay coverage específico"
-
-    build:
-        name: Build Distribution
-        runs-on: ubuntu-latest
-        needs: [lint] # Solo depende del lint, no de los tests para acelerar
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
-
-            - name: Verify build script
-              run: |
-                  echo "=== Verificando script de build ==="
-                  if [ -f "./scripts/build.sh" ]; then
-                    chmod +x ./scripts/build.sh
-                    echo "Build script encontrado"
-                  else
-                    echo "Build script no encontrado, creando build básico..."
-                    mkdir -p dist
-                    echo "Build básico realizado" > dist/build-info.txt
-                  fi
-
-            - name: Build single-file distribution
-              run: |
-                  if [ -f "./scripts/build.sh" ]; then
-                    bash ./scripts/build.sh
-                  else
-                    echo "Usando build básico alternativo..."
-                    mkdir -p dist
-                    tar -czf dist/moodle-backup-cli.tar.gz src/ lib/ scripts/ || true
-                  fi
-
-            - name: Upload build artifacts
-              uses: actions/upload-artifact@v3
-              with:
-                  name: moodle-backup-cli
-                  path: dist/
-
-    release:
-        name: Create Release
-        runs-on: ubuntu-latest
-        needs: [build]
-        if: github.event_name == 'release'
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
-
-            - name: Download build artifacts
-              uses: actions/download-artifact@v3
-              with:
-                  name: moodle-backup-cli
-                  path: dist/
-
-            - name: Upload release assets
-              uses: softprops/action-gh-release@v1
-              with:
-                  files: |
-                      dist/moodle-backup-cli
-                      dist/moodle-backup-cli.tar.gz
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    security:
-        name: Security Scan
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
-
-            - name: Run security checks
-              run: |
-                  # Buscar patrones inseguros
-                  grep -r "eval\|exec\|system\|\$(\|wget\|curl" src/ lib/ || true
-                  # Verificar permisos de archivos
-                  find . -type f -perm /u+x -name "*.sh" | while read -r file; do
-                    echo "Checking executable: $file"
-                  done
+  docker-test:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Docker Tests
+        run: |
+          docker compose -f tests/docker/docker-compose.test.yml up --build --abort-on-container-exit
+          docker compose -f tests/docker/docker-compose.test.yml down -v

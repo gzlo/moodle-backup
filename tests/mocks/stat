@@ -1,6 +1,0 @@
-#!/bin/bash
-if [[ "$*" =~ "--format=%U" ]]; then
-    echo "user1"
-    exit 0
-fi
-exit 1

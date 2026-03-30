@@ -1,0 +1,10 @@
+#!/bin/bash
+# Mock for rclone - records calls and returns success
+echo "MOCK_RCLONE: $*" >> "${MB_TEST_DIR:-/tmp}/mock_calls.log"
+case "$1" in
+    --version|-V) echo "mock-rclone 1.0" ;;
+    listremotes) echo "gdrive:" ;;
+    lsd|ls|lsf) echo "test-folder/" ;;
+    *) true ;;
+esac
+exit 0

@@ -1,6 +1,0 @@
-#!/bin/bash
-if [[ "$*" =~ "vesta" ]]; then
-    echo "vesta.service - loaded"
-    exit 0
-fi
-exit 1

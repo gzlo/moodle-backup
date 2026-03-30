@@ -1,3 +1,0 @@
-#!/bin/bash
-echo "50G	/large/directory"
-exit 0

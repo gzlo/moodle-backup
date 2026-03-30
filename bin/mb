@@ -1,0 +1,248 @@
+#!/bin/bash
+# =============================================================================
+# MB (MOODLE BACKUP) - CLI Tool
+# =============================================================================
+# Sistema de backup automatizado para Moodle con soporte multi-configuración,
+# streaming a Google Drive, y notificaciones por email.
+#
+# Instalación: /usr/local/bin/mb → /opt/moodle-backup/bin/mb
+# Versión: 4.0.0
+# =============================================================================
+
+set -euo pipefail
+
+# Detectar directorio de instalación
+MB_INSTALL_DIR="${MB_INSTALL_DIR:-$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)}"
+export MB_INSTALL_DIR
+
+# Cargar librerías
+for lib in utils logging config notifications backup_maintenance backup_streaming backup_orchestrator; do
+    if [ -f "${MB_INSTALL_DIR}/lib/${lib}.sh" ]; then
+        source "${MB_INSTALL_DIR}/lib/${lib}.sh"
+    else
+        echo "[ERROR] Librería no encontrada: ${MB_INSTALL_DIR}/lib/${lib}.sh" >&2
+        exit 1
+    fi
+done
+
+# Re-inicializar colores con argumentos actuales
+setup_colors "$@"
+
+# =============================================================================
+# FUNCIONES DE PRESENTACIÓN
+# =============================================================================
+
+show_help() {
+    echo -e "${GREEN}MB (Moodle Backup) v${MB_VERSION} - Sistema de Backup Multi-Configuración${NC}
+    
+${YELLOW}━━━ COMANDOS PRINCIPALES ━━━${NC}
+  ${BLUE}backup <config>${NC}         Ejecutar backup completo (Fase 1 + Fase 2)
+  ${BLUE}run <config>${NC}            Ejecutar backup en background
+  ${BLUE}list${NC}                    Listar configuraciones
+  ${BLUE}status${NC}                  Estado del sistema
+  ${BLUE}logs <config>${NC}           Ver logs recientes
+  ${BLUE}test <config>${NC}           Probar configuración
+  ${BLUE}cron${NC}                    Monitor del cron
+
+${YELLOW}━━━ GESTIÓN DE CONFIGURACIONES ━━━${NC}
+  ${BLUE}moodlesite list${NC}             Listar configuraciones
+  ${BLUE}moodlesite enable <config>${NC}  Habilitar configuración
+  ${BLUE}moodlesite disable <config>${NC} Deshabilitar configuración
+  ${BLUE}moodlesite create <config>${NC}  Crear nueva configuración
+  ${BLUE}moodlesite show <config>${NC}    Mostrar configuración
+  ${BLUE}moodlesite test <config>${NC}    Probar configuración
+
+${YELLOW}━━━ OPCIONES ━━━${NC}
+  ${BLUE}--no-color${NC}              Deshabilitar colores
+  ${BLUE}--version, -v${NC}           Mostrar versión
+  ${BLUE}--help, -h${NC}              Mostrar esta ayuda
+
+${YELLOW}━━━ EJEMPLOS ━━━${NC}
+  ${GREEN}mb list${NC}
+  ${GREEN}mb backup ivama${NC}
+  ${GREEN}mb moodlesite enable ivama${NC}
+  ${GREEN}mb logs ivama${NC}"
+}
+
+show_status() {
+    echo -e "${YELLOW}=== Estado del Sistema Moodle Backup v${MB_VERSION} ===${NC}"
+    echo ""
+    
+    echo -e "${BLUE}Instalación:${NC}"
+    echo -e "  📁 $MB_INSTALL_DIR"
+    echo ""
+    
+    echo -e "${BLUE}Scripts:${NC}"
+    for lib in config logging notifications utils backup_maintenance backup_streaming backup_orchestrator; do
+        if [ -f "${MB_INSTALL_DIR}/lib/${lib}.sh" ]; then
+            echo -e "  ✅ lib/${lib}.sh"
+        else
+            echo -e "  ❌ lib/${lib}.sh"
+        fi
+    done
+    echo ""
+    
+    echo -e "${BLUE}Configuraciones:${NC}"
+    list_available_configs
+    echo ""
+    
+    echo -e "${BLUE}Dependencias:${NC}"
+    for cmd in mysql mysqldump php tar gzip zip rclone; do
+        if command -v "$cmd" >/dev/null 2>&1; then
+            echo -e "  ✅ $cmd"
+        else
+            echo -e "  ❌ $cmd"
+        fi
+    done
+    
+    if command -v rclone >/dev/null 2>&1; then
+        echo ""
+        echo -e "${BLUE}rclone remotes:${NC}"
+        rclone listremotes 2>/dev/null | sed 's/^/  /' || echo "  (ninguno)"
+    fi
+}
+
+show_logs() {
+    local config="$1"
+    if [ -z "$config" ]; then
+        show_message "error" "Uso: mb logs <config>"
+        return 1
+    fi
+    
+    if ! load_moodle_config "$config" 2>/dev/null; then
+        show_message "error" "Configuración no encontrada: $config"
+        return 1
+    fi
+    
+    local today=$(date '+%d-%m-%Y')
+    local log_file="$BACKUP_BASE/$INSTANCE_NAME/$today/${INSTANCE_NAME}_backup_log_$today.log"
+    
+    if [ -f "$log_file" ]; then
+        show_message "info" "Log: $log_file"
+        tail -f "$log_file"
+    else
+        show_message "warning" "Log de hoy no encontrado"
+        show_message "info" "Buscando logs recientes..."
+        find "$BACKUP_BASE/$INSTANCE_NAME/" -name "*.log" -type f -mtime -7 2>/dev/null | sort -r | head -5
+    fi
+}
+
+run_background() {
+    local config="$1"
+    if [ -z "$config" ]; then
+        show_message "error" "Uso: mb run <config>"
+        return 1
+    fi
+    
+    if ! load_moodle_config "$config" 2>/dev/null; then
+        show_message "error" "Configuración no encontrada: $config"
+        return 1
+    fi
+    
+    local nohup_log="/tmp/backup_${INSTANCE_NAME}_$(date +%d%m%Y_%H%M).log"
+    
+    show_message "info" "Iniciando backup en background..."
+    echo "�� Configuración: $config"
+    echo "🏢 Instancia: $INSTANCE_NAME"
+    echo "📄 Log: $nohup_log"
+    
+    nohup "$0" backup "$config" > "$nohup_log" 2>&1 &
+    local pid=$!
+    
+    echo "✅ Proceso iniciado (PID: $pid)"
+    echo "📧 Notificaciones a: $NOTIFICATION_EMAIL"
+    echo ""
+    echo "🔍 Monitorear: tail -f $nohup_log"
+    
+    sleep 2
+    if ps -p $pid >/dev/null 2>&1; then
+        echo "✅ Confirmado: proceso ejecutándose"
+    else
+        show_message "error" "El proceso no se inició"
+        return 1
+    fi
+}
+
+handle_moodlesite() {
+    local subcmd="${1:-list}"
+    shift 2>/dev/null || true
+    
+    case "$subcmd" in
+        list)     list_available_configs ;;
+        enable)   enable_config "$1" ;;
+        disable)  disable_config "$1" ;;
+        create)   create_config "$1" ;;
+        show)     show_config_info "$1" ;;
+        test)     test_config "$1" ;;
+        *)
+            show_message "error" "Subcomando desconocido: $subcmd"
+            echo "Uso: mb moodlesite {list|enable|disable|create|show|test} [config]"
+            return 1
+            ;;
+    esac
+}
+
+# =============================================================================
+# MAIN
+# =============================================================================
+
+# Filtrar --no-color de args
+ARGS=()
+for arg in "$@"; do
+    [ "$arg" = "--no-color" ] || ARGS+=("$arg")
+done
+set -- "${ARGS[@]}"
+
+[ $# -eq 0 ] && { show_help; exit 0; }
+
+COMMAND="$1"
+shift
+
+case "$COMMAND" in
+    help|-h|--help)
+        show_help
+        ;;
+    version|-v|--version)
+        echo "mb v${MB_VERSION}"
+        ;;
+    list)
+        list_available_configs
+        ;;
+    backup)
+        [ -z "${1:-}" ] && { show_message "error" "Uso: mb backup <config>"; exit 1; }
+        show_message "info" "Ejecutando backup completo: $1"
+        load_moodle_config "$1" 2>/dev/null || { show_message "error" "Config no encontrada: $1"; exit 1; }
+        run_full_backup "$1"
+        ;;
+    run)
+        run_background "${1:-}"
+        ;;
+    moodlesite)
+        handle_moodlesite "$@"
+        ;;
+    logs)
+        show_logs "${1:-}"
+        ;;
+    status)
+        show_status
+        ;;
+    test)
+        [ -z "${1:-}" ] && { show_message "error" "Uso: mb test <config>"; exit 1; }
+        test_config "$1"
+        ;;
+    cron)
+        local_monitor="${MB_INSTALL_DIR}/scripts/cron_monitor.sh"
+        if [ -f "$local_monitor" ]; then
+            bash "$local_monitor"
+        else
+            show_message "error" "cron_monitor.sh no encontrado"
+            exit 1
+        fi
+        ;;
+    *)
+        show_message "error" "Comando desconocido: $COMMAND"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac

@@ -1,6 +1,0 @@
-#!/bin/bash
-if [[ "$*" =~ "/usr/local/cpanel" ]]; then
-    echo "cpanel found"
-    exit 0
-fi
-exit 1

@@ -1,107 +1,26 @@
-# ===================== MOODLE BACKUP V3 - GITIGNORE =====================
+# Configuraciones con credenciales
+configs/available/*.config
+!configs/available/moodle.config.example
+configs/enabled/
 
-# Tests y desarrollo - mantener archivos esenciales para CI/CD
-tests/tmp/
-tests/results/
-tests/coverage/*.txt
-tests/coverage/*.html
-!tests/
-!tests/**/*.sh
-!tests/**/*.bats
-!tests/**/*.bash
-!tests/**/README.md
-!tests/**/*.conf.example
-test-*.sh
-test-*.conf
-*.test
-*.test.*
-dev-*
-personal-*
-scratch.*
-
-# Archivos de configuración locales
-*.conf
-!*.conf.example
-
-# Logs y archivos de ejecución
+# Logs
 *.log
-logs/
-session_logs/
-/var/log/moodle_backup*.log
 
-# Archivos temporales y de backup
-*.tmp
-*.temp
+# Temporales
 /tmp/
-/mnt/*/moodle_backup/
-moodle-backup-install-*/
-backups/
-*.sql
-*.sql.gz
-*.tar.gz
-*.tar.zst
-*.tar.xz
-tmp_backup_*/
+*.tmp
+*.bak
 
-# Archivos de sistema
+# Test artifacts
+tests/lib/
+tests/docker/.env
+
+# OS
 .DS_Store
 Thumbs.db
-.directory
-*.pid
 
-# Configuraciones de IDE y editores
-.vscode/
+# IDE
 .idea/
+.vscode/
 *.swp
 *.swo
-*~
-*.sublime-project
-*.sublime-workspace
-
-# Archivos de desarrollo y pruebas
-test_*
-prueba_*
-debug_*
-validate_*
-testing/
-dev/
-benchmark_*/
-
-# Archivos sensibles (por seguridad)
-*password*
-*secret*
-*key*
-*auth*
-credentials*
-*.pem
-*.key
-*.crt
-
-# Configuraciones específicas de clientes
-client_configs/
-production.conf
-staging.conf
-
-# Archivos de instalación temporal
-install_*
-setup_*
-
-# Archivos de rclone (pueden contener tokens)
-rclone.conf
-*.rclone.conf
-
-# Variables de entorno locales
-.env
-.env.local
-.env.production
-.env.staging
-
-# Archivos de base de datos
-*.db
-*.sqlite
-*.sqlite3
-
-# Archivos de Google Drive/Cloud
-gdrive_tokens/
-*.token
-*.refresh_token

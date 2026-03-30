@@ -1,9 +1,0 @@
-#!/bin/bash
-if [[ "$*" =~ --command="SELECT 1" ]]; then
-    echo " ?column?"
-    echo "----------"
-    echo "        1"
-    echo "(1 row)"
-    exit 0
-fi
-exit 1

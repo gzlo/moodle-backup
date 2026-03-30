@@ -1,3 +1,0 @@
-#!/bin/bash
-echo "mysqladmin  Ver 8.0.32"
-exit 0

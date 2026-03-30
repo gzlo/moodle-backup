@@ -1,0 +1,10 @@
+#!/bin/bash
+# Mock for mail - records calls and returns success
+echo "MOCK_MAIL: $*" >> "${MB_TEST_DIR:-/tmp}/mock_calls.log"
+case "$1" in
+    --version|-V) echo "mock-mail 1.0" ;;
+    listremotes) echo "gdrive:" ;;
+    lsd|ls|lsf) echo "test-folder/" ;;
+    *) true ;;
+esac
+exit 0

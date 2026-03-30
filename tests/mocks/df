@@ -1,4 +1,0 @@
-#!/bin/bash
-echo "Filesystem      Size  Used Avail Use% Mounted on"
-echo "/dev/sda1        20G   19G  500M  98% /"
-exit 0
