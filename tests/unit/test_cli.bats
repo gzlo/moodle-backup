@@ -5,7 +5,7 @@ load '../test_helper'
 @test "mb --version shows version" {
     run "${MB_PROJECT_DIR}/bin/mb" --version
     [ "$status" -eq 0 ]
-    [[ "$output" == *"mb v"* ]]
+    [[ "$output" == *"MB v"* ]]
 }
 
 @test "mb --help shows help text" {
