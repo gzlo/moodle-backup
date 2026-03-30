@@ -18,6 +18,19 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
       
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Extract section between ## [VERSION] and next ## [
+          BODY=$(awk "/^## \[${VERSION}\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md)
+          # Use delimiter for multiline output
+          {
+            echo "body<<CHANGELOG_EOF"
+            echo "$BODY"
+            echo "CHANGELOG_EOF"
+          } >> $GITHUB_OUTPUT
+      
       - name: Build .deb package
         run: bash packaging/build-deb.sh
       
@@ -27,10 +40,43 @@ jobs:
       - name: Build .rpm package
         run: bash packaging/build-rpm.sh
       
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum *.deb *.rpm > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          name: "Moodle Backup CLI v${{ steps.version.outputs.version }}"
+          body: |
+            ${{ steps.changelog.outputs.body }}
+
+            ---
+            
+            ## 📦 Instalación
+            
+            **One-liner (siempre la última versión):**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/gzlo/moodle-backup/main/scripts/install.sh | sudo bash
+            ```
+            
+            **Debian/Ubuntu:**
+            ```bash
+            wget https://github.com/gzlo/moodle-backup/releases/download/v${{ steps.version.outputs.version }}/moodle-backup_${{ steps.version.outputs.version }}_all.deb
+            sudo apt install ./moodle-backup_${{ steps.version.outputs.version }}_all.deb
+            ```
+            
+            **RHEL/Fedora/CentOS:**
+            ```bash
+            wget https://github.com/gzlo/moodle-backup/releases/download/v${{ steps.version.outputs.version }}/moodle-backup-${{ steps.version.outputs.version }}-1.noarch.rpm
+            sudo dnf install ./moodle-backup-${{ steps.version.outputs.version }}-1.noarch.rpm
+            ```
+            
+            **Checksums (SHA256):**
+            Ver archivo `SHA256SUMS.txt` adjunto.
           files: |
             dist/*.deb
             dist/*.rpm
+            dist/SHA256SUMS.txt

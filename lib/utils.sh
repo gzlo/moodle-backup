@@ -4,7 +4,7 @@
 # =============================================================================
 
 # Versión del CLI
-export MB_VERSION="4.0.0"
+export MB_VERSION="4.1.0"
 
 # Detectar soporte de colores
 detect_color_support() {

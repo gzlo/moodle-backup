@@ -34,14 +34,15 @@ sudo make install
 ## 🚀 Inicio Rápido
 
 ```bash
-# Crear configuración con wizard interactivo (4 pasos)
+# Crear configuración con wizard interactivo (5 pasos)
 mb moodlesite create mi-moodle
 
 # El wizard te pregunta:
-# 📂 Paso 1/4: Rutas (auto-detecta Moodle y moodledata)
-# 🗄️ Paso 2/4: Base de datos (lee config.php automáticamente)
-# ☁️ Paso 3/4: Google Drive (detecta remotes de rclone)
-# 📧 Paso 4/4: Email y servidor (usa hostname del sistema)
+# 📂 Paso 1/5: Rutas (auto-detecta Moodle y moodledata)
+# 🗄️ Paso 2/5: Base de datos (lee config.php automáticamente)
+# ☁️ Paso 3/5: Google Drive (detecta remotes de rclone)
+# 📧 Paso 4/5: Notificaciones (email, servidor)
+# 📨 Paso 5/5: Transporte email (auto-detecta SMTP, msmtp, etc.)
 # → Al final pregunta si habilitar. ¡Listo!
 
 # Probar que todo está bien
@@ -61,6 +62,7 @@ mb backup mi-moodle
 | `mb status` | Estado del sistema |
 | `mb logs <config>` | Ver logs recientes |
 | `mb test <config>` | Probar configuración |
+| `mb test-email <config>` | Probar envío de email |
 | `mb cron` | Monitor del cron |
 | `mb moodlesite <cmd>` | Gestión de configuraciones |
 
@@ -179,10 +181,10 @@ make lint
 
 ### Obligatorios
 - Bash ≥ 4.0
-- mysql client
+- mysql client (mysql-client o mariadb-client)
 - PHP CLI
 - tar, gzip, zip
-- rclone (configurado con remote de Google Drive)
+- **rclone** (configurado con remote de Google Drive) — ver sección abajo
 
 ### Verificar dependencias
 ```bash
@@ -190,6 +192,105 @@ mb status
 # o
 bash scripts/check_dependencies.sh
 ```
+
+## ☁️ Configuración de rclone (Google Drive)
+
+`mb` usa [rclone](https://rclone.org) para subir backups a Google Drive. Es un requisito previo que debe configurarse **antes** de crear tu primera configuración.
+
+### 1. Instalar rclone
+
+```bash
+# Método recomendado (última versión):
+curl https://rclone.org/install.sh | sudo bash
+
+# O con tu gestor de paquetes:
+sudo apt install rclone        # Debian/Ubuntu
+sudo dnf install rclone        # Fedora/RHEL
+sudo pacman -S rclone          # Arch
+```
+
+### 2. Configurar remote de Google Drive
+
+```bash
+rclone config
+```
+
+El asistente te guiará paso a paso:
+
+```
+n) New remote
+name> gdrive                     ← usa "gdrive" como nombre (recomendado)
+Storage> drive                   ← selecciona "Google Drive"
+client_id>                       ← Enter (usa el default)
+client_secret>                   ← Enter (usa el default)
+scope> 1                         ← Full access
+root_folder_id>                  ← Enter (raíz de Drive)
+service_account_file>            ← Enter (no aplica)
+Edit advanced config? n
+Use auto config? y               ← Si tienes navegador; si es servidor headless, usa "n"
+```
+
+> **Servidor sin navegador (headless)?** Selecciona `n` en auto config. rclone te dará una URL para autorizarte desde otra máquina con navegador y pegar el token resultante.
+
+### 3. Verificar que funciona
+
+```bash
+# Listar contenido de tu Google Drive
+rclone lsd gdrive:
+
+# Crear carpeta de prueba
+rclone mkdir gdrive:moodle_backups
+
+# Subir archivo de prueba
+echo "test" > /tmp/test.txt
+rclone copy /tmp/test.txt gdrive:moodle_backups/
+rclone ls gdrive:moodle_backups/
+rm /tmp/test.txt
+```
+
+### 4. Usar en mb
+
+Al crear una configuración con `mb moodlesite create`, el wizard detecta automáticamente los remotes configurados en rclone y te permite seleccionar cuál usar.
+
+```bash
+# El wizard detecta tus remotes:
+# ☁️ Paso 3/5: Google Drive
+# Remotes disponibles: gdrive, otro-remote
+# Remote de rclone [gdrive]: ← Enter para usar el detectado
+```
+
+> **Nota**: Si usas un nombre diferente a `gdrive`, simplemente ingrésalo cuando el wizard lo pregunte.
+
+## 🏷️ Releases y Versionado
+
+Este proyecto usa [Semantic Versioning](https://semver.org/) y GitHub Actions para compilar y publicar releases automáticamente.
+
+### Crear un release
+
+```bash
+# 1. Actualizar versión en lib/utils.sh (MB_VERSION)
+# 2. Actualizar CHANGELOG.md con los cambios de la versión
+# 3. Commit los cambios
+git add -A && git commit -m "release: v4.1.0"
+
+# 4. Crear tag y push
+git tag v4.1.0
+git push origin main --tags
+```
+
+### ¿Qué pasa automáticamente?
+
+Cuando haces push de un tag `v*`, GitHub Actions:
+
+1. ✅ Ejecuta lint (shellcheck) y tests (BATS)
+2. 📦 Compila paquete `.deb` (Debian/Ubuntu)
+3. 📦 Compila paquete `.rpm` (Fedora/RHEL/CentOS)
+4. 🏷️ Crea un **GitHub Release** con:
+   - Changelog extraído automáticamente de `CHANGELOG.md`
+   - Paquetes `.deb` y `.rpm` como assets descargables
+   - Checksums SHA256 de cada archivo
+
+Los releases quedan visibles en: `https://github.com/gzlo/moodle-backup/releases`
 
 ## 📝 Licencia
 
