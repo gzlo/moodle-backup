@@ -60,6 +60,7 @@ mb backup mi-moodle
 | `mb run <config>` | Ejecutar backup en background |
 | `mb list` | Listar configuraciones |
 | `mb status` | Estado del sistema |
+| `mb detect` | Detectar servidor, panel y Moodle |
 | `mb logs <config>` | Ver logs recientes |
 | `mb test <config>` | Probar configuración |
 | `mb test-email <config>` | Probar envío de email |
@@ -191,6 +192,28 @@ make lint
 mb status
 # o
 bash scripts/check_dependencies.sh
+```
+
+## 🖥️ Paneles de control soportados
+
+`mb detect` identifica automáticamente el panel de control y adapta las rutas de búsqueda:
+
+| Panel | Detección | Rutas típicas |
+|-------|-----------|---------------|
+| cPanel/WHM | `/usr/local/cpanel/` | `/home/*/public_html/moodle` |
+| Plesk | `/usr/local/psa/` | `/var/www/vhosts/*/httpdocs/moodle` |
+| HestiaCP | `/usr/local/hestia/` | `/home/*/web/*/public_html/moodle` |
+| CyberPanel | `/usr/local/CyberCP/` | `/home/*/public_html/moodle` |
+| CloudPanel | `/home/clp/` | `/home/*/htdocs/*/moodle` |
+| DirectAdmin | `/usr/local/directadmin/` | `/home/*/domains/*/public_html/moodle` |
+| Webmin/Virtualmin | `/usr/share/webmin/` | `/home/*/public_html/moodle` |
+| ISPConfig | `/usr/local/ispconfig/` | `/var/www/*/web/moodle` |
+| Docker | `/.dockerenv` | `/var/www/html/moodle`, `/opt/bitnami/moodle` |
+| Sin panel | (fallback) | `/var/www/html/moodle`, `/var/www/moodle`, `/opt/moodle` |
+
+```bash
+# Ver detección completa del servidor
+mb detect
 ```
 
 ## ☁️ Configuración de rclone (Cloud Storage)

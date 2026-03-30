@@ -6,7 +6,12 @@ Este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
-_Próximas mejoras pendientes._
+### Added
+- Auto-detección de servidor y paneles de control (cPanel/WHM, Plesk, HestiaCP, CyberPanel, CloudPanel, DirectAdmin, Webmin/Virtualmin, ISPConfig, Docker)
+- Nuevo módulo `lib/server_detect.sh` con 8 funciones de detección
+- Nuevo comando `mb detect` muestra info completa del servidor
+- Wizard mejorado: detecta panel, lista instalaciones Moodle encontradas con selección interactiva
+- 18 tests unitarios para detección de servidor
 
 ## [4.1.0] - 2026-03-30
 

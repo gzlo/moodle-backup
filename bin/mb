@@ -16,7 +16,7 @@ MB_INSTALL_DIR="${MB_INSTALL_DIR:-$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)}
 export MB_INSTALL_DIR
 
 # Cargar librerías
-for lib in utils logging config notifications backup_maintenance backup_streaming backup_orchestrator; do
+for lib in utils logging config notifications backup_maintenance backup_streaming backup_orchestrator server_detect; do
     if [ -f "${MB_INSTALL_DIR}/lib/${lib}.sh" ]; then
         # shellcheck disable=SC1090
         source "${MB_INSTALL_DIR}/lib/${lib}.sh"
@@ -55,6 +55,7 @@ show_help() {
   ${BLUE}run <config>${NC}            Ejecutar backup en background
   ${BLUE}list${NC}                    Listar configuraciones
   ${BLUE}status${NC}                  Estado del sistema
+  ${BLUE}detect${NC}                  Detectar servidor, panel y Moodle
   ${BLUE}logs <config>${NC}           Ver logs recientes
   ${BLUE}test <config>${NC}           Probar configuración
   ${BLUE}test-email <config>${NC}     Enviar email de prueba
@@ -243,6 +244,9 @@ case "$COMMAND" in
         ;;
     status)
         show_status
+        ;;
+    detect)
+        show_server_info
         ;;
     test)
         [ -z "${1:-}" ] && { show_message "error" "Uso: mb test <config>"; exit 1; }

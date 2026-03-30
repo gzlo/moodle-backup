@@ -172,16 +172,18 @@ _ask() {
     eval "$var_name=\"$value\""
 }
 
-# Detectar automáticamente rutas de Moodle
+# Detectar automáticamente rutas de Moodle (usa server_detect.sh)
 _detect_moodle() {
-    local found=""
-    for path in /var/www/html/moodle /var/www/moodle /home/*/public_html/moodle /opt/moodle; do
-        if [ -f "$path/config.php" ] 2>/dev/null; then
-            found="$path"
-            break
-        fi
-    done
-    echo "$found"
+    local installations
+    installations=$(detect_moodle_installations 2>/dev/null)
+    if [ -n "$installations" ]; then
+        echo "$installations" | head -1
+    fi
+}
+
+# Listar todas las instalaciones detectadas
+_detect_all_moodle() {
+    detect_moodle_installations 2>/dev/null
 }
 
 # Detectar moodledata desde config.php
@@ -228,11 +230,51 @@ create_config() {
     echo "━━━ Wizard: Nueva configuración '$name' ━━━"
     echo ""
     
-    # Step 1: Detectar Moodle
-    echo "📂 Paso 1/4: Rutas de Moodle"
+    # Step 1: Detectar servidor y Moodle
+    echo "📂 Paso 1/5: Detección de servidor y Moodle"
+    
+    local panel
+    panel=$(detect_control_panel 2>/dev/null || echo "none")
+    local panel_display=""
+    case "$panel" in
+        cpanel)       panel_display="cPanel" ;;
+        cpanel-whm)   panel_display="cPanel/WHM" ;;
+        plesk)        panel_display="Plesk" ;;
+        hestiacp)     panel_display="HestiaCP" ;;
+        cyberpanel)   panel_display="CyberPanel" ;;
+        cloudpanel)   panel_display="CloudPanel" ;;
+        directadmin)  panel_display="DirectAdmin" ;;
+        ispconfig)    panel_display="ISPConfig" ;;
+        webmin)       panel_display="Webmin" ;;
+        virtualmin)   panel_display="Virtualmin" ;;
+        docker)       panel_display="Docker" ;;
+        *)            panel_display="Sin panel" ;;
+    esac
+    echo "  🖥️  Panel detectado: ${panel_display}"
+    
+    local all_installations
+    all_installations=$(_detect_all_moodle)
     local detected_moodle
     detected_moodle=$(_detect_moodle)
     local src_app="" src_data="" backup_base=""
+    
+    if [ -n "$all_installations" ]; then
+        local count
+        count=$(echo "$all_installations" | wc -l)
+        if [ "$count" -gt 1 ]; then
+            echo "  📂 Instalaciones Moodle encontradas ($count):"
+            local i=1
+            while IFS= read -r inst_path; do
+                local ver
+                ver=$(get_moodle_version "$inst_path" 2>/dev/null || echo "?")
+                printf "    %d. %s (v%s)\n" "$i" "$inst_path" "$ver"
+                i=$((i + 1))
+            done <<< "$all_installations"
+            echo ""
+        else
+            echo "  ✅ Moodle detectado: $detected_moodle"
+        fi
+    fi
     
     _ask "Directorio de Moodle (donde está config.php)" "$detected_moodle" "src_app"
     
@@ -249,7 +291,7 @@ create_config() {
     echo ""
     
     # Step 2: Base de datos
-    echo "🗄️  Paso 2/4: Base de datos"
+    echo "🗄️  Paso 2/5: Base de datos"
     local db_name="" db_user="" db_pass="" db_host=""
     
     local detected_dbname
@@ -267,7 +309,7 @@ create_config() {
     echo ""
     
     # Step 3: Cloud Storage
-    echo "☁️  Paso 3/4: Cloud Storage (rclone)"
+    echo "☁️  Paso 3/5: Cloud Storage (rclone)"
     local cloud_remote="" cloud_path=""
     
     # Detectar remotes de rclone
