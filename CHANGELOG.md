@@ -11,18 +11,25 @@ _Próximas mejoras pendientes._
 ## [4.1.0] - 2026-03-30
 
 ### Added
-- Documentación completa de prerequisitos (rclone + Google Drive)
-- Guía de releases y versionado en README
+- Soporte multi-cloud: S3, Azure Blob, Backblaze B2, Dropbox, SFTP y cualquier remote de rclone
+- ASCII art banner de bienvenida en el CLI
+- Documentación completa de prerequisitos (rclone + configuración cloud)
+- Guía de múltiples proveedores cloud en README (S3, Azure, B2, Dropbox, SFTP)
 - Release workflow mejorado: changelog automático + checksums SHA256
-- Sección de configuración rclone paso a paso
+- CONTRIBUTING.md con reglas de contribución (solo PR, sin merge automático)
+- Sección de seguridad en README
 
 ### Changed
+- Refactor: todas las variables `GDRIVE_*` renombradas a `CLOUD_*` con compatibilidad hacia atrás
+- `upload_to_gdrive()` renombrado a `upload_to_cloud()` en todos los módulos
+- Wizard actualizado: paso de Google Drive ahora es "Cloud Storage (rclone)"
 - GitHub Actions actualizado a `actions/checkout@v5` (Node.js 24)
 - CHANGELOG.md reformateado con estándar Keep a Changelog
-- Release workflow extrae changelog por versión automáticamente
+- Email de contacto reemplazado por URL de GitHub para privacidad
 
 ### Fixed
 - Todos los warnings de shellcheck resueltos (SC2155, SC2086, SC2181, SC2164, SC1090, SC2034, SC2064, SC2115)
+- Test de versión corregido para coincidir con banner ASCII
 
 ## [4.0.0] - 2026-03-30
 
