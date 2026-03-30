@@ -13,7 +13,7 @@ BIN_LINK="/usr/local/bin/mb"
 REPO_URL="https://github.com/gzlo/moodle-backup.git"
 LOG_DIR="/var/log/moodle-backup"
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; export BLUE='\033[0;34m'; NC='\033[0m'
 
 msg() { echo -e "${GREEN}[MB]${NC} $1"; }
 warn() { echo -e "${YELLOW}[MB]${NC} $1"; }

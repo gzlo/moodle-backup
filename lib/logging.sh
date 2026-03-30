@@ -16,7 +16,8 @@ init_logging() {
 # Escribir mensaje al log y stdout
 log_message() {
     local level="$1" message="$2"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     local line="[$timestamp] [$level] $message"
     
     if [ -n "$MB_LOG_FILE" ]; then

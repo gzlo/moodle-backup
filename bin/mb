@@ -18,6 +18,7 @@ export MB_INSTALL_DIR
 # Cargar librerías
 for lib in utils logging config notifications backup_maintenance backup_streaming backup_orchestrator; do
     if [ -f "${MB_INSTALL_DIR}/lib/${lib}.sh" ]; then
+        # shellcheck disable=SC1090
         source "${MB_INSTALL_DIR}/lib/${lib}.sh"
     else
         echo "[ERROR] Librería no encontrada: ${MB_INSTALL_DIR}/lib/${lib}.sh" >&2
@@ -115,7 +116,8 @@ show_logs() {
         return 1
     fi
     
-    local today=$(date '+%d-%m-%Y')
+    local today
+    today=$(date '+%d-%m-%Y')
     local log_file="$BACKUP_BASE/$INSTANCE_NAME/$today/${INSTANCE_NAME}_backup_log_$today.log"
     
     if [ -f "$log_file" ]; then
@@ -140,7 +142,8 @@ run_background() {
         return 1
     fi
     
-    local nohup_log="/tmp/backup_${INSTANCE_NAME}_$(date +%d%m%Y_%H%M).log"
+    local nohup_log
+    nohup_log="/tmp/backup_${INSTANCE_NAME}_$(date +%d%m%Y_%H%M).log"
     
     show_message "info" "Iniciando backup en background..."
     echo "�� Configuración: $config"

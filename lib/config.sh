@@ -30,6 +30,7 @@ load_moodle_config() {
         return 1
     fi
     
+    # shellcheck disable=SC1090
     if source "$config_file"; then
         validate_config_variables
         return $?
@@ -76,7 +77,8 @@ list_available_configs() {
         [ -f "$config" ] || continue
         [[ "$config" == *"*.config"* ]] && continue
         found=true
-        local name=$(basename "$config" .config)
+        local name
+        name=$(basename "$config" .config)
         local enabled=""
         [ -L "${CONFIG_ENABLED_DIR}/${name}.config" ] && enabled=" [HABILITADA]"
         echo "  - ${name}${enabled}"
@@ -218,7 +220,8 @@ create_config() {
     
     # Step 1: Detectar Moodle
     echo "📂 Paso 1/4: Rutas de Moodle"
-    local detected_moodle=$(_detect_moodle)
+    local detected_moodle
+    detected_moodle=$(_detect_moodle)
     local src_app="" src_data="" backup_base=""
     
     _ask "Directorio de Moodle (donde está config.php)" "$detected_moodle" "src_app"
@@ -228,7 +231,8 @@ create_config() {
     fi
     
     # Intentar detectar moodledata
-    local detected_data=$(_detect_moodledata "$src_app")
+    local detected_data
+    detected_data=$(_detect_moodledata "$src_app")
     _ask "Directorio moodledata" "${detected_data:-/var/moodledata}" "src_data"
     _ask "Directorio base para backups locales" "/var/backups/moodle" "backup_base"
     
@@ -238,9 +242,12 @@ create_config() {
     echo "🗄️  Paso 2/4: Base de datos"
     local db_name="" db_user="" db_pass="" db_host=""
     
-    local detected_dbname=$(_detect_db_from_config "$src_app" "name")
-    local detected_dbuser=$(_detect_db_from_config "$src_app" "user")
-    local detected_dbhost=$(_detect_db_from_config "$src_app" "host")
+    local detected_dbname
+    detected_dbname=$(_detect_db_from_config "$src_app" "name")
+    local detected_dbuser
+    detected_dbuser=$(_detect_db_from_config "$src_app" "user")
+    local detected_dbhost
+    detected_dbhost=$(_detect_db_from_config "$src_app" "host")
     
     _ask "Nombre de la base de datos" "${detected_dbname:-moodle}" "db_name"
     _ask "Usuario de BD" "${detected_dbuser:-moodle_user}" "db_user"
@@ -394,6 +401,7 @@ show_config_info() {
     
     # Cargar en subshell para no contaminar
     (
+        # shellcheck disable=SC1090
         source "$config_file"
         echo "Instancia: ${INSTANCE_NAME:-N/A}"
         echo "Moodle: ${SRC_APP:-N/A}"
@@ -431,6 +439,7 @@ test_config() {
     
     # Test MySQL
     if command -v mysql >/dev/null 2>&1; then
+        # shellcheck disable=SC2153
         if mysql -h "${DB_HOST:-localhost}" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE $DB_NAME;" 2>/dev/null; then
             echo "✅ Conexión a base de datos OK"
         else

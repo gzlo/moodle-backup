@@ -19,7 +19,7 @@ if [ -d "$INSTALL_DIR/configs/enabled" ] && ls "$INSTALL_DIR/configs/enabled/"*.
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         echo "Conservando $INSTALL_DIR/configs/"
         # Solo eliminar bin/, lib/, scripts/
-        rm -rf "$INSTALL_DIR/bin" "$INSTALL_DIR/lib" "$INSTALL_DIR/scripts"
+        rm -rf "${INSTALL_DIR:?}/bin" "${INSTALL_DIR:?}/lib" "${INSTALL_DIR:?}/scripts"
     else
         rm -rf "$INSTALL_DIR"
     fi

@@ -16,9 +16,12 @@ cleanup_old_backups() {
     local backup_folders
     backup_folders=$(rclone lsf "$gdrive_path" --dirs-only --format "t,f" 2>/dev/null | sort -k1,1)
     
-    [ $? -ne 0 ] && { log_message "WARNING" "No se pudo acceder a GDrive para retención"; return 0; }
+    if ! rclone lsf "$gdrive_path" --dirs-only --format "t,f" >/dev/null 2>&1; then
+        log_message "WARNING" "No se pudo acceder a GDrive para retención"; return 0
+    fi
     
-    local folder_count=$(echo "$backup_folders" | grep -c '^[0-9]' 2>/dev/null || echo "0")
+    local folder_count
+    folder_count=$(echo "$backup_folders" | grep -c '^[0-9]' 2>/dev/null || echo "0")
     
     log_message "INFO" "Carpetas encontradas: $folder_count (retención: $retention)"
     
@@ -30,7 +33,7 @@ cleanup_old_backups() {
     local folders_to_delete=$((folder_count - retention + 1))
     log_message "WARNING" "Eliminando $folders_to_delete carpetas antiguas"
     
-    echo "$backup_folders" | head -n "$folders_to_delete" | while IFS=$'\t' read -r timestamp folder_name; do
+    echo "$backup_folders" | head -n "$folders_to_delete" | while IFS=$'\t' read -r _timestamp folder_name; do
         [ -n "$folder_name" ] || continue
         if rclone purge "${gdrive_path}/${folder_name}" 2>/dev/null; then
             log_message "SUCCESS" "Eliminado: $folder_name"
@@ -43,8 +46,10 @@ cleanup_old_backups() {
 # Ejecutar backup completo (Fase 1 + Fase 2)
 run_full_backup() {
     local config_name="$1"
-    local start_time=$(date +%s)
-    local orchestrator_log="/tmp/backup_orquestador_${INSTANCE_NAME}_$(date +%d-%m-%Y_%H%M%S).log"
+    local start_time
+    start_time=$(date +%s)
+    local orchestrator_log
+    orchestrator_log="/tmp/backup_orquestador_${INSTANCE_NAME}_$(date +%d-%m-%Y_%H%M%S).log"
     
     init_logging "$orchestrator_log"
     
@@ -56,16 +61,17 @@ run_full_backup() {
     
     # === FASE 1 ===
     log_message "INFO" "====== FASE 1: BACKUP BD + APP ======"
-    send_progress_notification "Fase 1 - Backup BD + App" "INICIADO" "$(get_elapsed_time $start_time)"
+    send_progress_notification "Fase 1 - Backup BD + App" "INICIADO" "$(get_elapsed_time "$start_time")"
     
-    local phase1_start=$(date +%s)
+    local phase1_start
+    phase1_start=$(date +%s)
     local phase1_success=false phase1_result
     
     if run_phase1 "$config_name"; then
-        phase1_result="EXITOSO ($(get_elapsed_time $phase1_start))"
+        phase1_result="EXITOSO ($(get_elapsed_time "$phase1_start"))"
         phase1_success=true
     else
-        phase1_result="FALLÓ ($(get_elapsed_time $phase1_start))"
+        phase1_result="FALLÓ ($(get_elapsed_time "$phase1_start"))"
     fi
     
     # === FASE 2 ===
@@ -73,14 +79,15 @@ run_full_backup() {
     local phase2_success=false phase2_result
     
     if [ "$phase1_success" = true ]; then
-        send_progress_notification "Fase 2 - Streaming moodledata" "INICIADO" "$(get_elapsed_time $start_time)"
+        send_progress_notification "Fase 2 - Streaming moodledata" "INICIADO" "$(get_elapsed_time "$start_time")"
         
-        local phase2_start=$(date +%s)
+        local phase2_start
+        phase2_start=$(date +%s)
         if run_phase2 "$config_name"; then
-            phase2_result="EXITOSO ($(get_elapsed_time $phase2_start))"
+            phase2_result="EXITOSO ($(get_elapsed_time "$phase2_start"))"
             phase2_success=true
         else
-            phase2_result="FALLÓ ($(get_elapsed_time $phase2_start))"
+            phase2_result="FALLÓ ($(get_elapsed_time "$phase2_start"))"
         fi
     else
         phase2_result="SALTADO - Error en Fase 1"
@@ -88,7 +95,8 @@ run_full_backup() {
     fi
     
     # === RESUMEN ===
-    local total_elapsed=$(get_elapsed_time $start_time)
+    local total_elapsed
+    total_elapsed=$(get_elapsed_time "$start_time")
     log_message "INFO" "====== RESUMEN ======"
     log_message "INFO" "Tiempo total: $total_elapsed"
     log_message "INFO" "Fase 1: $phase1_result"

@@ -38,12 +38,14 @@ if [ ! -f "$config_file" ]; then
     log_cron "❌ Config no encontrada: $config_file"
     exit 1
 fi
+# shellcheck disable=SC1090
 source "$config_file"
 
 # Verificar periodicidad
 should_run() {
     local schedule="${CRON_SCHEDULE:-7}"
-    local today=$(date '+%Y-%m-%d')
+    local today
+    today=$(date '+%Y-%m-%d')
     local last_run_file="/tmp/mb_last_run_${CONFIG}"
 
     case "$schedule" in
@@ -51,7 +53,7 @@ should_run() {
         2) local days=2 ;;
         3) local days=5 ;;
         4) [ "$(date '+%u')" = "7" ] && { echo "$today" > "$last_run_file"; return 0; }; return 1 ;;
-        5) local d=$(date '+%d'); [ "$d" = "01" ] || [ "$d" = "15" ] && { echo "$today" > "$last_run_file"; return 0; }; return 1 ;;
+        5) local d; d=$(date '+%d'); [ "$d" = "01" ] || [ "$d" = "15" ] && { echo "$today" > "$last_run_file"; return 0; }; return 1 ;;
         6) [ "$(date '+%d')" = "01" ] && { echo "$today" > "$last_run_file"; return 0; }; return 1 ;;
         7) echo "$today" > "$last_run_file"; return 0 ;;
         *) log_cron "❌ CRON_SCHEDULE inválido: $schedule"; return 1 ;;
@@ -62,7 +64,8 @@ should_run() {
         if [ ! -f "$last_run_file" ]; then
             echo "$today" > "$last_run_file"; return 0
         fi
-        local last=$(cat "$last_run_file" 2>/dev/null || echo "1970-01-01")
+        local last
+        last=$(cat "$last_run_file" 2>/dev/null || echo "1970-01-01")
         local diff=$(( ($(date -d "$today" +%s) - $(date -d "$last" +%s 2>/dev/null || echo 0)) / 86400 ))
         [ $diff -ge $days ] && { echo "$today" > "$last_run_file"; return 0; }
         return 1

@@ -94,7 +94,8 @@ check_write_permissions() {
 # Verificar espacio en disco
 check_disk_space() {
     local required_gb=5
-    local available_gb=$(df /tmp | awk 'NR==2 {print int($4/1024/1024)}')
+    local available_gb
+    available_gb=$(df /tmp | awk 'NR==2 {print int($4/1024/1024)}')
     
     if [ "$available_gb" -ge "$required_gb" ]; then
         show_message "success" "Espacio disponible: ${available_gb}GB (mínimo: ${required_gb}GB)"

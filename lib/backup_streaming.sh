@@ -33,7 +33,8 @@ perform_streaming_backup() {
         done
     fi
     
-    local tar_cmd="tar $exclude_params -czf - -C $(dirname $SRC_DATA) $(basename $SRC_DATA)/"
+    local tar_cmd
+    tar_cmd="tar $exclude_params -czf - -C $(dirname "$SRC_DATA") $(basename "$SRC_DATA")/"
     local rclone_cmd="rclone rcat '$gdrive_path'"
     
     log_message "INFO" "Comando: $tar_cmd | $rclone_cmd"
@@ -53,10 +54,12 @@ verify_streaming_backup() {
     
     log_message "INFO" "Verificando backup en Google Drive..."
     
-    local file_info=$(rclone ls "$gdrive_path" 2>/dev/null)
+    local file_info
+    file_info=$(rclone ls "$gdrive_path" 2>/dev/null)
     
     if [ -n "$file_info" ]; then
-        local size=$(echo "$file_info" | awk '{print $1}')
+        local size
+        size=$(echo "$file_info" | awk '{print $1}')
         local size_mb=$((size / 1024 / 1024))
         local size_gb=$((size_mb / 1024))
         
@@ -72,9 +75,12 @@ verify_streaming_backup() {
 # Ejecutar Fase 2 completa
 run_phase2() {
     local config_name="$1"
-    local date_str=$(date +%d-%m-%Y)
-    local time_str=$(date +%H%M%S)
-    local start_time=$(date +%s)
+    local date_str
+    date_str=$(date +%d-%m-%Y)
+    local time_str
+    time_str=$(date +%H%M%S)
+    local start_time
+    start_time=$(date +%s)
     
     local backup_name="${INSTANCE_NAME}_moodledata_${date_str}_${time_str}.tar.gz"
     local gdrive_path="${GDRIVE_REMOTE}:${GDRIVE_BASE_PATH}/${INSTANCE_NAME}/${date_str}/${backup_name}"
@@ -90,7 +96,8 @@ run_phase2() {
     
     # Verificar que no hay otro proceso
     if [ -f "$pid_file" ]; then
-        local old_pid=$(cat "$pid_file")
+        local old_pid
+        old_pid=$(cat "$pid_file")
         if ps -p "$old_pid" >/dev/null 2>&1; then
             log_message "ERROR" "Otro backup en curso (PID: $old_pid)"
             return 1
@@ -99,7 +106,7 @@ run_phase2() {
     fi
     
     echo $$ > "$pid_file"
-    trap "rm -f '$pid_file'" EXIT
+    trap 'rm -f "$pid_file"' EXIT
     
     # Prerequisites
     check_streaming_prerequisites || { send_phase2_error "Falla en prerequisites" "N/A"; return 1; }
@@ -109,7 +116,8 @@ run_phase2() {
     
     # Ejecutar streaming
     if ! perform_streaming_backup "$gdrive_path"; then
-        local elapsed=$(get_elapsed_time $start_time)
+        local elapsed
+        elapsed=$(get_elapsed_time "$start_time")
         send_phase2_error "Falló streaming" "$elapsed"
         return 1
     fi
@@ -117,12 +125,14 @@ run_phase2() {
     # Verificar
     local final_size
     if final_size=$(verify_streaming_backup "$gdrive_path"); then
-        local elapsed=$(get_elapsed_time $start_time)
+        local elapsed
+        elapsed=$(get_elapsed_time "$start_time")
         log_message "SUCCESS" "=== FASE 2 COMPLETADA ($elapsed) ==="
         send_phase2_success "$elapsed" "$final_size" "$gdrive_path"
         return 0
     else
-        local elapsed=$(get_elapsed_time $start_time)
+        local elapsed
+        elapsed=$(get_elapsed_time "$start_time")
         send_phase2_error "Verificación falló" "$elapsed"
         return 1
     fi

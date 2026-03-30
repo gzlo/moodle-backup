@@ -295,7 +295,8 @@ send_test_email() {
     [ "$transport" = "auto" ] && transport=$(_detect_email_transport)
     
     local subject="[TEST] Moodle Backup - Email de prueba - ${SERVER_NAME:-$(hostname)}"
-    local body="Este es un email de prueba del sistema Moodle Backup CLI.
+    local body
+    body="Este es un email de prueba del sistema Moodle Backup CLI.
 
 Configuración: ${config_name}
 Servidor: ${SERVER_NAME:-$(hostname)}
@@ -336,7 +337,8 @@ send_phase1_error() {
     local error_msg="$1" elapsed="$2"
     local subject="[CRITICO] Backup Moodle - Fase 1 - Backup BD+App - ${SERVER_NAME}"
     
-    local body="BACKUP MOODLE FALLIDO - $(date)
+    local body
+    body="BACKUP MOODLE FALLIDO - $(date)
 
 Detalles del Error:
 $error_msg
@@ -362,7 +364,8 @@ send_phase1_success() {
     local elapsed="$1" db_size="$2" app_size="$3"
     local subject="[EXITO] Backup Moodle - Fase 1 - Backup BD+App - ${SERVER_NAME}"
     
-    local body="BACKUP ${INSTANCE_NAME} COMPLETADO - $(date)
+    local body
+    body="BACKUP ${INSTANCE_NAME} COMPLETADO - $(date)
 
 Detalles:
 - Servidor: ${SERVER_NAME}
@@ -385,7 +388,8 @@ send_phase2_error() {
     local error_msg="$1" elapsed="$2"
     local subject="[CRITICO] Backup Moodle - Fase 2 - Backup Moodledata Streaming - ${SERVER_NAME}"
     
-    local body="BACKUP ${INSTANCE_NAME} MOODLEDATA FALLIDO - $(date)
+    local body
+    body="BACKUP ${INSTANCE_NAME} MOODLEDATA FALLIDO - $(date)
 
 Detalles del Error:
 $error_msg
@@ -409,7 +413,8 @@ send_phase2_success() {
     local elapsed="$1" final_size="$2" gdrive_path="$3"
     local subject="[OK] Backup Moodle - Fase 2 - Backup Moodledata Streaming - ${SERVER_NAME}"
     
-    local body="BACKUP ${INSTANCE_NAME} MOODLEDATA COMPLETADO - $(date)
+    local body
+    body="BACKUP ${INSTANCE_NAME} MOODLEDATA COMPLETADO - $(date)
 
 Detalles:
 - Servidor: ${SERVER_NAME}
@@ -429,7 +434,8 @@ send_progress_notification() {
     local stage="$1" status="$2" elapsed="$3"
     local subject="[INFO] Backup Moodle - $stage - ${SERVER_NAME}"
     
-    local body="BACKUP ${INSTANCE_NAME} - PROGRESO - $(date)
+    local body
+    body="BACKUP ${INSTANCE_NAME} - PROGRESO - $(date)
 
 Configuración: ${INSTANCE_NAME}
 Etapa: $stage
@@ -456,7 +462,8 @@ send_final_notification() {
         status="COMPLETADO CON ERRORES"
     fi
     
-    local body="BACKUP MOODLE COMPLETO - $status - $(date)
+    local body
+    body="BACKUP MOODLE COMPLETO - $status - $(date)
 
 Resumen:
 - Fase 1 (BD + App): $phase1_result

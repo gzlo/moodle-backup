@@ -44,20 +44,19 @@ disable_maintenance_mode() {
 # Backup de base de datos MySQL
 backup_database() {
     local backup_dir="$1"
-    local db_backup="${backup_dir}/${INSTANCE_NAME}_database_$(date +%d-%m-%Y).zip"
+    local db_backup
+    db_backup="${backup_dir}/${INSTANCE_NAME}_database_$(date +%d-%m-%Y).zip"
     local temp_sql="${backup_dir}/temp_database.sql"
     
     log_message "INFO" "Iniciando backup de BD: $DB_NAME"
     
-    mysqldump -h "${DB_HOST:-localhost}" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" > "$temp_sql" 2>/dev/null
-    
-    if [ $? -eq 0 ] && [ -f "$temp_sql" ] && [ -s "$temp_sql" ]; then
+    if mysqldump -h "${DB_HOST:-localhost}" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" > "$temp_sql" 2>/dev/null \
+       && [ -f "$temp_sql" ] && [ -s "$temp_sql" ]; then
         log_message "SUCCESS" "Dump de BD creado"
         
-        cd "$(dirname "$temp_sql")"
-        zip -j "$db_backup" "$(basename "$temp_sql")" >/dev/null 2>&1
-        
-        if [ $? -eq 0 ] && [ -f "$db_backup" ]; then
+        cd "$(dirname "$temp_sql")" || return 1
+        if zip -j "$db_backup" "$(basename "$temp_sql")" >/dev/null 2>&1 \
+           && [ -f "$db_backup" ]; then
             rm -f "$temp_sql"
             log_message "SUCCESS" "Backup BD: $(get_file_size "$db_backup")"
             echo "$db_backup"
@@ -73,7 +72,8 @@ backup_database() {
 # Backup de archivos de aplicación
 backup_application() {
     local backup_dir="$1"
-    local app_backup="${backup_dir}/${INSTANCE_NAME}_app_$(date +%d-%m-%Y).zip"
+    local app_backup
+    app_backup="${backup_dir}/${INSTANCE_NAME}_app_$(date +%d-%m-%Y).zip"
     
     log_message "INFO" "Iniciando backup de app: $SRC_APP"
     
@@ -82,10 +82,9 @@ backup_application() {
         return 1
     fi
     
-    cd "$(dirname "$SRC_APP")"
-    zip -r "$app_backup" "$(basename "$SRC_APP")" >/dev/null 2>&1
-    
-    if [ $? -eq 0 ] && [ -f "$app_backup" ]; then
+    cd "$(dirname "$SRC_APP")" || return 1
+    if zip -r "$app_backup" "$(basename "$SRC_APP")" >/dev/null 2>&1 \
+       && [ -f "$app_backup" ]; then
         log_message "SUCCESS" "Backup app: $(get_file_size "$app_backup")"
         echo "$app_backup"
         return 0
@@ -156,8 +155,10 @@ validate_phase1_requirements() {
 # Ejecutar Fase 1 completa
 run_phase1() {
     local config_name="$1"
-    local date_str=$(date +%d-%m-%Y)
-    local start_time=$(date +%s)
+    local date_str
+    date_str=$(date +%d-%m-%Y)
+    local start_time
+    start_time=$(date +%s)
     
     local backup_dir="${BACKUP_BASE}/${INSTANCE_NAME}/${date_str}"
     mkdir -p "$backup_dir"
@@ -199,7 +200,8 @@ run_phase1() {
     fi
     
     # Resultado
-    local elapsed=$(get_elapsed_time $start_time)
+    local elapsed
+    elapsed=$(get_elapsed_time "$start_time")
     if [ "$db_success" = true ] && [ "$app_success" = true ] && [ "$gdrive_success" = true ]; then
         log_message "SUCCESS" "=== FASE 1 COMPLETADA ($elapsed) ==="
         send_phase1_success "$elapsed" "$(get_file_size "$db_backup")" "$(get_file_size "$app_backup")"
