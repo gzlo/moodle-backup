@@ -264,13 +264,35 @@ create_config() {
     
     echo ""
     
-    # Step 4: Notificaciones
-    echo "📧 Paso 4/4: Notificaciones"
+    # Step 4: Notificaciones y Email
+    echo "📧 Paso 4/5: Notificaciones"
     local email="" server_name="" system_user=""
     
     _ask "Email para notificaciones" "admin@$(hostname -d 2>/dev/null || echo 'ejemplo.com')" "email"
     _ask "Nombre del servidor" "$(hostname -s 2>/dev/null || echo 'mi-servidor')" "server_name"
     _ask "Usuario del sistema (owner de Moodle)" "www-data" "system_user"
+    
+    echo ""
+    
+    # Step 5: Transporte de email
+    echo "✉️  Paso 5/5: Transporte de email"
+    echo "  Opciones:"
+    echo "    auto  = detecta el mejor disponible (recomendado)"
+    echo "    smtp  = SMTP directo con curl (Gmail, SendGrid, etc.)"
+    echo "    mailx = comando mail del sistema (cPanel)"
+    echo "    api   = HTTP API (SendGrid/Mailgun)"
+    
+    local email_transport="" smtp_host="" smtp_port="" smtp_user="" smtp_pass=""
+    _ask "Transporte" "auto" "email_transport"
+    
+    if [ "$email_transport" = "smtp" ]; then
+        echo ""
+        echo "  Configuración SMTP:"
+        _ask "  Host SMTP" "smtp.gmail.com" "smtp_host"
+        _ask "  Puerto" "587" "smtp_port"
+        _ask "  Usuario SMTP" "" "smtp_user"
+        _ask "  Contraseña SMTP" "" "smtp_pass"
+    fi
     
     echo ""
     
@@ -308,6 +330,14 @@ GDRIVE_BASE_PATH="${gdrive_path}"
 NOTIFICATION_EMAIL="${email}"
 NOTIFICATION_FROM="backup-noreply@\$(hostname -d 2>/dev/null || echo 'localhost')"
 
+# Transporte de email (auto|smtp|msmtp|ssmtp|mailx|sendmail|api)
+EMAIL_TRANSPORT="${email_transport}"
+SMTP_HOST="${smtp_host}"
+SMTP_PORT="${smtp_port:-587}"
+SMTP_USER="${smtp_user}"
+SMTP_PASSWORD="${smtp_pass}"
+SMTP_TLS="yes"
+
 # Cron (1=diario, 2=cada 2 días, 3=cada 5 días, 4=semanal, 5=quincenal, 6=mensual, 7=custom)
 CRON_SCHEDULE="7"
 
@@ -326,6 +356,7 @@ CONFIGEOF
     echo "  🗄️  BD:        $db_name@$db_host"
     echo "  ☁️  GDrive:    ${gdrive_remote}:${gdrive_path}"
     echo "  📧 Email:     $email"
+    echo "  ✉️  Transporte: $email_transport"
     echo ""
     echo "✅ Configuración creada: $target"
     echo ""
@@ -422,6 +453,11 @@ test_config() {
         echo "⚠️  rclone no instalado"
     fi
     
+    # Test email transport
+    show_email_transport_info 2>/dev/null || true
+    
     [ $errors -eq 0 ] && echo "✅ Configuración válida" || echo "❌ $errors errores encontrados"
+    echo ""
+    echo "💡 Para probar envío de email: mb test-email $name"
     return $errors
 }

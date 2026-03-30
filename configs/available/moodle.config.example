@@ -106,15 +106,38 @@ PHP_CLI="/usr/bin/php"
 # =============================================================================
 
 # Email donde enviar notificaciones de estado de backup
-# Ejemplos: "admin@midominio.com", "sysadmin@empresa.com"
 NOTIFICATION_EMAIL="admin@midominio.com"
 
+# Transporte de email: auto|smtp|msmtp|ssmtp|mailx|sendmail|api
+# "auto" detecta el mejor disponible en el sistema
+# "smtp" usa curl SMTP directo (funciona en cualquier servidor con curl)
+# "mailx" usa el comando mail del sistema (requiere MTA local, funciona en cPanel)
+# "api" usa SendGrid/Mailgun via HTTP API (no necesita puerto 25)
+EMAIL_TRANSPORT="auto"
+
+# Remitente de los emails (dirección From:)
+NOTIFICATION_FROM="backup-noreply@midominio.com"
+
+# --- SMTP directo (cuando EMAIL_TRANSPORT=smtp o auto con SMTP configurado) ---
+# Funciona con: Gmail, SendGrid, Mailgun, Amazon SES, cualquier SMTP
+# Gmail: smtp.gmail.com / 587 / tu-email@gmail.com / app-password
+# SendGrid: smtp.sendgrid.net / 587 / apikey / tu-api-key
+SMTP_HOST=""
+SMTP_PORT="587"
+SMTP_USER=""
+SMTP_PASSWORD=""
+SMTP_TLS="yes"
+
+# --- HTTP API (cuando EMAIL_TRANSPORT=api) ---
+# SendGrid: https://api.sendgrid.com/v3/mail/send
+# Mailgun: https://api.mailgun.net/v3/tu-dominio.com/messages
+EMAIL_API_URL=""
+EMAIL_API_KEY=""
+
 # Nombre identificativo del servidor (aparece en emails)
-# Ejemplos: "servidor-principal", "moodle-prod", "campus-virtual"
 SERVER_NAME="mi-servidor-moodle"
 
 # Usuario del sistema bajo el cual corre Moodle (para permisos)
-# Ejemplos: "www-data", "apache", "nginx", "usuario"
 SYSTEM_USER="www-data"
 
 # =============================================================================

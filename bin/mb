@@ -42,6 +42,7 @@ ${YELLOW}━━━ COMANDOS PRINCIPALES ━━━${NC}
   ${BLUE}status${NC}                  Estado del sistema
   ${BLUE}logs <config>${NC}           Ver logs recientes
   ${BLUE}test <config>${NC}           Probar configuración
+  ${BLUE}test-email <config>${NC}     Enviar email de prueba
   ${BLUE}cron${NC}                    Monitor del cron
 
 ${YELLOW}━━━ GESTIÓN DE CONFIGURACIONES ━━━${NC}
@@ -229,6 +230,11 @@ case "$COMMAND" in
     test)
         [ -z "${1:-}" ] && { show_message "error" "Uso: mb test <config>"; exit 1; }
         test_config "$1"
+        ;;
+    test-email)
+        [ -z "${1:-}" ] && { show_message "error" "Uso: mb test-email <config>"; exit 1; }
+        load_moodle_config "$1"
+        send_test_email "$1"
         ;;
     cron)
         local_monitor="${MB_INSTALL_DIR}/scripts/cron_monitor.sh"
