@@ -142,10 +142,56 @@ disable_config() {
     echo "OK: Configuración '$name' deshabilitada"
 }
 
-# Crear nueva configuración desde template
+# Pedir input al usuario con valor por defecto
+_ask() {
+    local prompt="$1"
+    local default="$2"
+    local var_name="$3"
+    local value=""
+    
+    if [ -n "$default" ]; then
+        printf "  %s [%s]: " "$prompt" "$default" >&2
+    else
+        printf "  %s: " "$prompt" >&2
+    fi
+    
+    read -r value
+    value="${value:-$default}"
+    eval "$var_name=\"$value\""
+}
+
+# Detectar automáticamente rutas de Moodle
+_detect_moodle() {
+    local found=""
+    for path in /var/www/html/moodle /var/www/moodle /home/*/public_html/moodle /opt/moodle; do
+        if [ -f "$path/config.php" ] 2>/dev/null; then
+            found="$path"
+            break
+        fi
+    done
+    echo "$found"
+}
+
+# Detectar moodledata desde config.php
+_detect_moodledata() {
+    local moodle_dir="$1"
+    if [ -f "$moodle_dir/config.php" ]; then
+        grep -oP "dataroot\s*=\s*['\"]?\K[^'\";\s]+" "$moodle_dir/config.php" 2>/dev/null || echo ""
+    fi
+}
+
+# Detectar datos de BD desde config.php
+_detect_db_from_config() {
+    local moodle_dir="$1"
+    local field="$2"
+    if [ -f "$moodle_dir/config.php" ]; then
+        grep -oP "\\\$CFG->db${field}\s*=\s*['\"]?\K[^'\";\s]+" "$moodle_dir/config.php" 2>/dev/null || echo ""
+    fi
+}
+
+# Crear nueva configuración con wizard interactivo
 create_config() {
     local name="$1"
-    local template="${CONFIG_AVAILABLE_DIR}/moodle.config.example"
     local target="${CONFIG_AVAILABLE_DIR}/${name}.config"
     
     if [ -f "$target" ]; then
@@ -153,15 +199,151 @@ create_config() {
         return 1
     fi
     
-    if [ ! -f "$template" ]; then
-        echo "ERROR: Template no encontrado: $template" >&2
-        return 1
+    # Check for --quiet flag (non-interactive, for tests)
+    if [[ "${2:-}" == "--quiet" ]]; then
+        local template="${CONFIG_AVAILABLE_DIR}/moodle.config.example"
+        if [ ! -f "$template" ]; then
+            echo "ERROR: Template no encontrado: $template" >&2
+            return 1
+        fi
+        cp "$template" "$target"
+        sed -i "s/INSTANCE_NAME=\"mi-instalacion\"/INSTANCE_NAME=\"${name}\"/" "$target"
+        echo "OK: Configuración '$name' creada en: $target"
+        return 0
     fi
     
-    cp "$template" "$target"
-    sed -i "s/INSTANCE_NAME=\"mi-instalacion\"/INSTANCE_NAME=\"${name}\"/" "$target"
-    echo "OK: Configuración '$name' creada en: $target"
-    echo "    Edita el archivo y luego habilita con: mb moodlesite enable $name"
+    echo ""
+    echo "━━━ Wizard: Nueva configuración '$name' ━━━"
+    echo ""
+    
+    # Step 1: Detectar Moodle
+    echo "📂 Paso 1/4: Rutas de Moodle"
+    local detected_moodle=$(_detect_moodle)
+    local src_app="" src_data="" backup_base=""
+    
+    _ask "Directorio de Moodle (donde está config.php)" "$detected_moodle" "src_app"
+    
+    if [ ! -d "$src_app" ]; then
+        echo "  ⚠️  Directorio no existe: $src_app (se usará igual)"
+    fi
+    
+    # Intentar detectar moodledata
+    local detected_data=$(_detect_moodledata "$src_app")
+    _ask "Directorio moodledata" "${detected_data:-/var/moodledata}" "src_data"
+    _ask "Directorio base para backups locales" "/var/backups/moodle" "backup_base"
+    
+    echo ""
+    
+    # Step 2: Base de datos
+    echo "🗄️  Paso 2/4: Base de datos"
+    local db_name="" db_user="" db_pass="" db_host=""
+    
+    local detected_dbname=$(_detect_db_from_config "$src_app" "name")
+    local detected_dbuser=$(_detect_db_from_config "$src_app" "user")
+    local detected_dbhost=$(_detect_db_from_config "$src_app" "host")
+    
+    _ask "Nombre de la base de datos" "${detected_dbname:-moodle}" "db_name"
+    _ask "Usuario de BD" "${detected_dbuser:-moodle_user}" "db_user"
+    _ask "Contraseña de BD" "" "db_pass"
+    _ask "Host de BD" "${detected_dbhost:-localhost}" "db_host"
+    
+    echo ""
+    
+    # Step 3: Google Drive
+    echo "☁️  Paso 3/4: Google Drive (rclone)"
+    local gdrive_remote="" gdrive_path=""
+    
+    # Detectar remotes de rclone
+    local rclone_remotes=""
+    if command -v rclone >/dev/null 2>&1; then
+        rclone_remotes=$(rclone listremotes 2>/dev/null | head -1 | tr -d ':')
+    fi
+    
+    _ask "Nombre del remote rclone" "${rclone_remotes:-gdrive}" "gdrive_remote"
+    _ask "Ruta base en Google Drive" "moodle_backups/${name}" "gdrive_path"
+    
+    echo ""
+    
+    # Step 4: Notificaciones
+    echo "📧 Paso 4/4: Notificaciones"
+    local email="" server_name="" system_user=""
+    
+    _ask "Email para notificaciones" "admin@$(hostname -d 2>/dev/null || echo 'ejemplo.com')" "email"
+    _ask "Nombre del servidor" "$(hostname -s 2>/dev/null || echo 'mi-servidor')" "server_name"
+    _ask "Usuario del sistema (owner de Moodle)" "www-data" "system_user"
+    
+    echo ""
+    
+    # Generar config
+    mkdir -p "$(dirname "$target")"
+    cat > "$target" << CONFIGEOF
+# =============================================================================
+# CONFIGURACIÓN MOODLE BACKUP: ${name}
+# Generada por: mb moodlesite create
+# =============================================================================
+
+# Identificación
+INSTANCE_NAME="${name}"
+SERVER_NAME="${server_name}"
+
+# Rutas de Moodle
+SRC_APP="${src_app}"
+SRC_DATA="${src_data}"
+BACKUP_BASE="${backup_base}"
+
+# Base de datos
+DB_NAME="${db_name}"
+DB_USER="${db_user}"
+DB_PASSWORD="${db_pass}"
+DB_HOST="${db_host}"
+
+# PHP
+PHP_CLI="/usr/bin/php"
+
+# Google Drive (rclone)
+GDRIVE_REMOTE="${gdrive_remote}"
+GDRIVE_BASE_PATH="${gdrive_path}"
+
+# Notificaciones
+NOTIFICATION_EMAIL="${email}"
+NOTIFICATION_FROM="backup-noreply@\$(hostname -d 2>/dev/null || echo 'localhost')"
+
+# Cron (1=diario, 2=cada 2 días, 3=cada 5 días, 4=semanal, 5=quincenal, 6=mensual, 7=custom)
+CRON_SCHEDULE="7"
+
+# Retención (cantidad de backups a mantener en GDrive)
+RETENTION_COPIES="2"
+
+# Exclusiones para moodledata streaming
+MOODLEDATA_EXCLUDES="cache/* sessions/* temp/* trashdir/*"
+
+# Usuario del sistema
+SYSTEM_USER="${system_user}"
+CONFIGEOF
+
+    echo "━━━ Resumen ━━━"
+    echo "  📁 Moodle:    $src_app"
+    echo "  🗄️  BD:        $db_name@$db_host"
+    echo "  ☁️  GDrive:    ${gdrive_remote}:${gdrive_path}"
+    echo "  📧 Email:     $email"
+    echo ""
+    echo "✅ Configuración creada: $target"
+    echo ""
+    
+    # Preguntar si habilitar
+    printf "¿Habilitar ahora? [S/n]: " >&2
+    local enable_now=""
+    read -r enable_now
+    enable_now="${enable_now:-S}"
+    
+    if [[ "$enable_now" =~ ^[Ss]$ ]]; then
+        enable_config "$name"
+        echo ""
+        echo "🚀 Listo. Ejecuta: mb test $name"
+    else
+        echo ""
+        echo "Para habilitar después: mb moodlesite enable $name"
+    fi
 }
 
 # Mostrar información de una configuración

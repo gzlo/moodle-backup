@@ -4,43 +4,51 @@ Sistema de backup automatizado para Moodle con streaming a Google Drive, modo ma
 
 [![CI](https://github.com/gzlo/moodle-backup/actions/workflows/ci.yml/badge.svg)](https://github.com/gzlo/moodle-backup/actions/workflows/ci.yml)
 
-## ⚡ Instalación Rápida
+## ⚡ Instalación
 
+### Opción 1: One-liner (siempre la última versión)
 ```bash
-# Opción 1: Desde el repo
-git clone https://github.com/gzlo/moodle-backup.git /opt/moodle-backup
-cd /opt/moodle-backup
-sudo make install
-
-# Opción 2: One-liner
 curl -fsSL https://raw.githubusercontent.com/gzlo/moodle-backup/main/scripts/install.sh | sudo bash
 ```
 
-## 🚀 Uso
+### Opción 2: Paquete .deb (Debian/Ubuntu)
+```bash
+# Descargar de GitHub Releases
+wget https://github.com/gzlo/moodle-backup/releases/latest/download/moodle-backup_4.0.0_all.deb
+sudo apt install ./moodle-backup_4.0.0_all.deb
+```
+
+### Opción 3: Paquete .rpm (RHEL/Fedora/CentOS)
+```bash
+wget https://github.com/gzlo/moodle-backup/releases/latest/download/moodle-backup-4.0.0-1.noarch.rpm
+sudo dnf install ./moodle-backup-4.0.0-1.noarch.rpm
+```
+
+### Opción 4: Desde el repo
+```bash
+git clone https://github.com/gzlo/moodle-backup.git /opt/moodle-backup
+cd /opt/moodle-backup
+sudo make install
+```
+
+## 🚀 Inicio Rápido
 
 ```bash
-# Ver ayuda
-mb help
-
-# Crear y configurar una instancia
+# Crear configuración con wizard interactivo (4 pasos)
 mb moodlesite create mi-moodle
-nano /opt/moodle-backup/configs/available/mi-moodle.config
-mb moodlesite enable mi-moodle
 
-# Probar configuración
+# El wizard te pregunta:
+# 📂 Paso 1/4: Rutas (auto-detecta Moodle y moodledata)
+# 🗄️ Paso 2/4: Base de datos (lee config.php automáticamente)
+# ☁️ Paso 3/4: Google Drive (detecta remotes de rclone)
+# 📧 Paso 4/4: Email y servidor (usa hostname del sistema)
+# → Al final pregunta si habilitar. ¡Listo!
+
+# Probar que todo está bien
 mb test mi-moodle
 
-# Ejecutar backup completo
+# Ejecutar backup
 mb backup mi-moodle
-
-# Ejecutar en background
-mb run mi-moodle
-
-# Ver estado
-mb status
-
-# Ver logs
-mb logs mi-moodle
 ```
 
 ## 📋 Comandos
@@ -130,7 +138,7 @@ moodle-backup/
 ├── lib/                        # Librerías modulares
 │   ├── utils.sh                # Colores, helpers
 │   ├── logging.sh              # Sistema de logging
-│   ├── config.sh               # Gestión de configuraciones
+│   ├── config.sh               # Gestión de configs + wizard
 │   ├── notifications.sh        # Notificaciones email
 │   ├── backup_maintenance.sh   # Fase 1: BD + App
 │   ├── backup_streaming.sh     # Fase 2: moodledata streaming
@@ -139,19 +147,13 @@ moodle-backup/
 │   ├── available/              # Configs disponibles
 │   └── enabled/                # Symlinks a configs activas
 ├── scripts/                    # Scripts auxiliares
-│   ├── install.sh              # Instalador
-│   ├── uninstall.sh            # Desinstalador
-│   ├── cron_wrapper.sh         # Wrapper para cron
-│   ├── cron_monitor.sh         # Monitor de cron
-│   └── check_dependencies.sh   # Verificador de deps
+├── packaging/                  # Generadores .deb y .rpm
 ├── tests/                      # Tests BATS
 │   ├── unit/                   # Tests unitarios
 │   ├── integration/            # Tests de integración
-│   ├── mocks/                  # Mocks (mysql, rclone, etc.)
-│   ├── fixtures/               # Configs de prueba
 │   └── docker/                 # Docker test environment
-├── Makefile                    # install, test, lint
-└── .github/workflows/ci.yml   # CI/CD
+├── Makefile                    # install, test, lint, build-deb, build-rpm
+└── .github/workflows/          # CI + Release automático
 ```
 
 ## 🧪 Testing

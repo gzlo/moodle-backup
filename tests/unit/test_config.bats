@@ -74,7 +74,7 @@ teardown() {
 
 @test "create_config creates from template" {
     cp "${MB_PROJECT_DIR}/configs/available/moodle.config.example" "$CONFIG_AVAILABLE_DIR/"
-    run create_config "new-site"
+    run create_config "new-site" "--quiet"
     [ "$status" -eq 0 ]
     [ -f "$CONFIG_AVAILABLE_DIR/new-site.config" ]
     grep -q 'INSTANCE_NAME="new-site"' "$CONFIG_AVAILABLE_DIR/new-site.config"
