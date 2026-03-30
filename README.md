@@ -1,6 +1,6 @@
 # 🗄️ Moodle Backup CLI (`mb`)
 
-Sistema de backup automatizado para Moodle con streaming a Google Drive, modo mantenimiento, y notificaciones por email.
+Sistema de backup automatizado para Moodle con streaming a cloud storage (Google Drive, S3, Azure, Dropbox, etc. via rclone), modo mantenimiento, y notificaciones por email.
 
 [![CI](https://github.com/gzlo/moodle-backup/actions/workflows/ci.yml/badge.svg)](https://github.com/gzlo/moodle-backup/actions/workflows/ci.yml)
 
@@ -40,7 +40,7 @@ mb moodlesite create mi-moodle
 # El wizard te pregunta:
 # 📂 Paso 1/5: Rutas (auto-detecta Moodle y moodledata)
 # 🗄️ Paso 2/5: Base de datos (lee config.php automáticamente)
-# ☁️ Paso 3/5: Google Drive (detecta remotes de rclone)
+# ☁️ Paso 3/5: Cloud Storage (detecta remotes de rclone)
 # 📧 Paso 4/5: Notificaciones (email, servidor)
 # 📨 Paso 5/5: Transporte email (auto-detecta SMTP, msmtp, etc.)
 # → Al final pregunta si habilitar. ¡Listo!
@@ -86,13 +86,13 @@ El backup se ejecuta en dos fases:
 2. Dump de base de datos MySQL → ZIP
 3. Comprime directorio de aplicación → ZIP
 4. Desactiva modo mantenimiento
-5. Sube ZIPs a Google Drive con rclone
+5. Sube ZIPs a cloud storage con rclone
 6. Envía notificación por email
 
 ### Fase 2: Streaming Moodledata
 1. Comprime moodledata con tar+gzip
-2. **Streaming directo a Google Drive** (sin espacio local adicional)
-3. Verifica archivo en GDrive
+2. **Streaming directo a cloud storage** (sin espacio local adicional)
+3. Verifica archivo en cloud storage
 4. Envía notificación por email
 
 ## ⚙️ Configuración
@@ -109,8 +109,8 @@ DB_NAME="moodle_db"
 DB_USER="moodle_user"
 DB_PASSWORD="secreto"
 DB_HOST="localhost"
-GDRIVE_REMOTE="gdrive"
-GDRIVE_BASE_PATH="moodle_backups"
+CLOUD_REMOTE="gdrive"
+CLOUD_BASE_PATH="moodle_backups"
 PHP_CLI="/usr/bin/php"
 NOTIFICATION_EMAIL="admin@ejemplo.com"
 SERVER_NAME="mi-servidor"
@@ -184,7 +184,7 @@ make lint
 - mysql client (mysql-client o mariadb-client)
 - PHP CLI
 - tar, gzip, zip
-- **rclone** (configurado con remote de Google Drive) — ver sección abajo
+- **rclone** (configurado con remote de cloud storage: Google Drive, S3, Azure, etc.) — ver sección abajo
 
 ### Verificar dependencias
 ```bash
@@ -193,9 +193,9 @@ mb status
 bash scripts/check_dependencies.sh
 ```
 
-## ☁️ Configuración de rclone (Google Drive)
+## ☁️ Configuración de rclone (Cloud Storage)
 
-`mb` usa [rclone](https://rclone.org) para subir backups a Google Drive. Es un requisito previo que debe configurarse **antes** de crear tu primera configuración.
+`mb` usa [rclone](https://rclone.org) para subir backups a cloud storage (Google Drive, S3, Azure, Dropbox, y 70+ proveedores). Es un requisito previo que debe configurarse **antes** de crear tu primera configuración.
 
 ### 1. Instalar rclone
 
@@ -209,7 +209,7 @@ sudo dnf install rclone        # Fedora/RHEL
 sudo pacman -S rclone          # Arch
 ```
 
-### 2. Configurar remote de Google Drive
+### 2. Configurar remote (ejemplo: Google Drive)
 
 ```bash
 rclone config
@@ -232,10 +232,69 @@ Use auto config? y               ← Si tienes navegador; si es servidor headles
 
 > **Servidor sin navegador (headless)?** Selecciona `n` en auto config. rclone te dará una URL para autorizarte desde otra máquina con navegador y pegar el token resultante.
 
+<details>
+<summary><b>Otros proveedores (S3, Azure, Backblaze B2, Dropbox...)</b></summary>
+
+#### Amazon S3
+
+```bash
+rclone config
+# name> s3backup
+# Storage> s3
+# provider> AWS
+# access_key_id> TU_ACCESS_KEY
+# secret_access_key> TU_SECRET_KEY
+# region> us-east-1
+```
+
+#### Azure Blob Storage
+
+```bash
+rclone config
+# name> azure
+# Storage> azureblob
+# account> tu-storage-account
+# key> tu-access-key
+```
+
+#### Backblaze B2
+
+```bash
+rclone config
+# name> b2
+# Storage> b2
+# account> tu-account-id
+# key> tu-application-key
+```
+
+#### Dropbox
+
+```bash
+rclone config
+# name> dropbox
+# Storage> dropbox
+# (autorización OAuth vía navegador)
+```
+
+#### SFTP (cualquier servidor remoto)
+
+```bash
+rclone config
+# name> miserver
+# Storage> sftp
+# host> backup.midominio.com
+# user> backup-user
+# key_file> ~/.ssh/id_rsa
+```
+
+> Ver lista completa de 70+ proveedores: https://rclone.org/overview/
+
+</details>
+
 ### 3. Verificar que funciona
 
 ```bash
-# Listar contenido de tu Google Drive
+# Listar contenido de tu remote
 rclone lsd gdrive:
 
 # Crear carpeta de prueba
@@ -254,7 +313,7 @@ Al crear una configuración con `mb moodlesite create`, el wizard detecta autom�
 
 ```bash
 # El wizard detecta tus remotes:
-# ☁️ Paso 3/5: Google Drive
+# ☁️ Paso 3/5: Cloud Storage
 # Remotes disponibles: gdrive, otro-remote
 # Remote de rclone [gdrive]: ← Enter para usar el detectado
 ```

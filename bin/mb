@@ -3,7 +3,7 @@
 # MB (MOODLE BACKUP) - CLI Tool
 # =============================================================================
 # Sistema de backup automatizado para Moodle con soporte multi-configuración,
-# streaming a Google Drive, y notificaciones por email.
+# streaming a cloud storage, y notificaciones por email.
 #
 # Instalación: /usr/local/bin/mb → /opt/moodle-backup/bin/mb
 # Versión: 4.0.0

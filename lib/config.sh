@@ -12,6 +12,14 @@ _mb_config_dirs_init() {
 }
 _mb_config_dirs_init
 
+
+# Backward compatibility: GDRIVE_* → CLOUD_*
+_mb_cloud_compat() {
+    CLOUD_REMOTE="${CLOUD_REMOTE:-${GDRIVE_REMOTE:-}}"
+    CLOUD_BASE_PATH="${CLOUD_BASE_PATH:-${GDRIVE_BASE_PATH:-}}"
+    STREAM_TO_CLOUD="${STREAM_TO_CLOUD:-${STREAM_TO_GDRIVE:-true}}"
+    export CLOUD_REMOTE CLOUD_BASE_PATH STREAM_TO_CLOUD
+}
 # Cargar configuración de Moodle por nombre
 load_moodle_config() {
     local config_name="$1"
@@ -33,7 +41,9 @@ load_moodle_config() {
     # shellcheck disable=SC1090
     if source "$config_file"; then
         validate_config_variables
-        return $?
+        local rc=$?
+        _mb_cloud_compat
+        return $rc
     else
         echo "ERROR: No se pudo cargar: $config_file" >&2
         return 1
@@ -256,18 +266,26 @@ create_config() {
     
     echo ""
     
-    # Step 3: Google Drive
-    echo "☁️  Paso 3/4: Google Drive (rclone)"
-    local gdrive_remote="" gdrive_path=""
+    # Step 3: Cloud Storage
+    echo "☁️  Paso 3/4: Cloud Storage (rclone)"
+    local cloud_remote="" cloud_path=""
     
     # Detectar remotes de rclone
     local rclone_remotes=""
     if command -v rclone >/dev/null 2>&1; then
+        local remote_list
+        remote_list=$(rclone listremotes --long 2>/dev/null)
+        if [ -n "$remote_list" ]; then
+            echo "  Remotes disponibles:"
+            echo "$remote_list" | while read -r line; do
+                echo "    - $line"
+            done
+        fi
         rclone_remotes=$(rclone listremotes 2>/dev/null | head -1 | tr -d ':')
     fi
     
-    _ask "Nombre del remote rclone" "${rclone_remotes:-gdrive}" "gdrive_remote"
-    _ask "Ruta base en Google Drive" "moodle_backups/${name}" "gdrive_path"
+    _ask "Nombre del remote rclone" "${rclone_remotes:-gdrive}" "cloud_remote"
+    _ask "Ruta base en cloud storage" "moodle_backups/${name}" "cloud_path"
     
     echo ""
     
@@ -329,9 +347,9 @@ DB_HOST="${db_host}"
 # PHP
 PHP_CLI="/usr/bin/php"
 
-# Google Drive (rclone)
-GDRIVE_REMOTE="${gdrive_remote}"
-GDRIVE_BASE_PATH="${gdrive_path}"
+# Cloud Storage (rclone)
+CLOUD_REMOTE="${cloud_remote}"
+CLOUD_BASE_PATH="${cloud_path}"
 
 # Notificaciones
 NOTIFICATION_EMAIL="${email}"
@@ -361,7 +379,7 @@ CONFIGEOF
     echo "━━━ Resumen ━━━"
     echo "  📁 Moodle:    $src_app"
     echo "  🗄️  BD:        $db_name@$db_host"
-    echo "  ☁️  GDrive:    ${gdrive_remote}:${gdrive_path}"
+    echo "  ☁️  Cloud:     ${cloud_remote}:${cloud_path}"
     echo "  📧 Email:     $email"
     echo "  ✉️  Transporte: $email_transport"
     echo ""
@@ -452,10 +470,10 @@ test_config() {
     
     # Test rclone
     if command -v rclone >/dev/null 2>&1; then
-        if rclone listremotes 2>/dev/null | grep -q "${GDRIVE_REMOTE:-gdrive}:"; then
-            echo "✅ rclone configurado con remote '${GDRIVE_REMOTE:-gdrive}'"
+        if rclone listremotes 2>/dev/null | grep -q "${CLOUD_REMOTE:-gdrive}:"; then
+            echo "✅ rclone configurado con remote '${CLOUD_REMOTE:-gdrive}'"
         else
-            echo "❌ rclone remote '${GDRIVE_REMOTE:-gdrive}' no encontrado"
+            echo "❌ rclone remote '${CLOUD_REMOTE:-gdrive}' no encontrado"
             errors=$((errors + 1))
         fi
     else

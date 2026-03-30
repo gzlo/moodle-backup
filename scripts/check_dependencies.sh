@@ -134,10 +134,12 @@ show_installation_tips() {
 # Verificar configuración rclone
 check_rclone_config() {
     if command -v rclone >/dev/null 2>&1; then
-        if rclone listremotes | grep -q "gdrive"; then
-            show_message "success" "rclone configurado con remote 'gdrive'"
+        local remotes
+        remotes=$(rclone listremotes 2>/dev/null)
+        if [ -n "$remotes" ]; then
+            show_message "success" "rclone configurado con remotes: $(echo "$remotes" | tr '\n' ' ')"
         else
-            show_message "warning" "rclone instalado pero no configurado"
+            show_message "warning" "rclone instalado pero sin remotes configurados"
             echo "  Ejecuta: rclone config"
         fi
     fi

@@ -1,8 +1,8 @@
 #!/bin/bash
 # =============================================================================
-# FASE 2: BACKUP STREAMING MOODLEDATA → GOOGLE DRIVE - Moodle Backup CLI
+# FASE 2: BACKUP STREAMING MOODLEDATA → CLOUD STORAGE - Moodle Backup CLI
 # =============================================================================
-# Comprime y envía moodledata directamente a GDrive sin espacio local.
+# Comprime y envía moodledata directamente a cloud storage sin espacio local.
 # Requiere: variables de config cargadas, lib/logging.sh, lib/notifications.sh
 # =============================================================================
 
@@ -13,7 +13,7 @@ check_streaming_prerequisites() {
     [ ! -d "$SRC_DATA" ] && { log_message "ERROR" "Directorio moodledata no existe: $SRC_DATA"; return 1; }
     command -v rclone >/dev/null 2>&1 || { log_message "ERROR" "rclone no instalado"; return 1; }
     command -v tar >/dev/null 2>&1 || { log_message "ERROR" "tar no disponible"; return 1; }
-    rclone lsd "${GDRIVE_REMOTE}:" >/dev/null 2>&1 || { log_message "ERROR" "Remote ${GDRIVE_REMOTE} no funciona"; return 1; }
+    rclone lsd "${CLOUD_REMOTE}:" >/dev/null 2>&1 || { log_message "ERROR" "Remote ${CLOUD_REMOTE} no funciona"; return 1; }
     
     log_message "SUCCESS" "Prerequisites OK"
     return 0
@@ -21,7 +21,7 @@ check_streaming_prerequisites() {
 
 # Ejecutar backup streaming
 perform_streaming_backup() {
-    local gdrive_path="$1"
+    local cloud_path="$1"
     
     log_message "INFO" "Ejecutando compresión y envío streaming..."
     
@@ -35,7 +35,7 @@ perform_streaming_backup() {
     
     local tar_cmd
     tar_cmd="tar $exclude_params -czf - -C $(dirname "$SRC_DATA") $(basename "$SRC_DATA")/"
-    local rclone_cmd="rclone rcat '$gdrive_path'"
+    local rclone_cmd="rclone rcat '$cloud_path'"
     
     log_message "INFO" "Comando: $tar_cmd | $rclone_cmd"
     
@@ -50,12 +50,12 @@ perform_streaming_backup() {
 
 # Verificar archivo en GDrive
 verify_streaming_backup() {
-    local gdrive_path="$1"
+    local cloud_path="$1"
     
-    log_message "INFO" "Verificando backup en Google Drive..."
+    log_message "INFO" "Verificando backup en cloud storage..."
     
     local file_info
-    file_info=$(rclone ls "$gdrive_path" 2>/dev/null)
+    file_info=$(rclone ls "$cloud_path" 2>/dev/null)
     
     if [ -n "$file_info" ]; then
         local size
@@ -83,7 +83,7 @@ run_phase2() {
     start_time=$(date +%s)
     
     local backup_name="${INSTANCE_NAME}_moodledata_${date_str}_${time_str}.tar.gz"
-    local gdrive_path="${GDRIVE_REMOTE}:${GDRIVE_BASE_PATH}/${INSTANCE_NAME}/${date_str}/${backup_name}"
+    local cloud_path="${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/${INSTANCE_NAME}/${date_str}/${backup_name}"
     local log_file="${BACKUP_BASE}/${INSTANCE_NAME}/stream_backup_${date_str}_${time_str}.log"
     local pid_file="/tmp/backup_stream_${INSTANCE_NAME}.pid"
     
@@ -92,7 +92,7 @@ run_phase2() {
     
     log_message "INFO" "=== FASE 2: STREAMING MOODLEDATA ==="
     log_message "INFO" "Configuración: $config_name | Fuente: $SRC_DATA"
-    log_message "INFO" "Destino: $gdrive_path"
+    log_message "INFO" "Destino: $cloud_path"
     
     # Verificar que no hay otro proceso
     if [ -f "$pid_file" ]; then
@@ -112,10 +112,10 @@ run_phase2() {
     check_streaming_prerequisites || { send_phase2_error "Falla en prerequisites" "N/A"; return 1; }
     
     # Crear dir en GDrive
-    rclone mkdir "${GDRIVE_REMOTE}:${GDRIVE_BASE_PATH}/${INSTANCE_NAME}/${date_str}/" 2>/dev/null
+    rclone mkdir "${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/${INSTANCE_NAME}/${date_str}/" 2>/dev/null
     
     # Ejecutar streaming
-    if ! perform_streaming_backup "$gdrive_path"; then
+    if ! perform_streaming_backup "$cloud_path"; then
         local elapsed
         elapsed=$(get_elapsed_time "$start_time")
         send_phase2_error "Falló streaming" "$elapsed"
@@ -124,11 +124,11 @@ run_phase2() {
     
     # Verificar
     local final_size
-    if final_size=$(verify_streaming_backup "$gdrive_path"); then
+    if final_size=$(verify_streaming_backup "$cloud_path"); then
         local elapsed
         elapsed=$(get_elapsed_time "$start_time")
         log_message "SUCCESS" "=== FASE 2 COMPLETADA ($elapsed) ==="
-        send_phase2_success "$elapsed" "$final_size" "$gdrive_path"
+        send_phase2_success "$elapsed" "$final_size" "$cloud_path"
         return 0
     else
         local elapsed

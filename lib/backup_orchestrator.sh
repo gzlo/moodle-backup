@@ -10,14 +10,14 @@
 cleanup_old_backups() {
     log_message "INFO" "Verificando retención de backups..."
     
-    local gdrive_path="${GDRIVE_REMOTE}:${GDRIVE_BASE_PATH}/${INSTANCE_NAME}"
+    local cloud_path="${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/${INSTANCE_NAME}"
     local retention="${RETENTION_COPIES:-2}"
     
     local backup_folders
-    backup_folders=$(rclone lsf "$gdrive_path" --dirs-only --format "t,f" 2>/dev/null | sort -k1,1)
+    backup_folders=$(rclone lsf "$cloud_path" --dirs-only --format "t,f" 2>/dev/null | sort -k1,1)
     
-    if ! rclone lsf "$gdrive_path" --dirs-only --format "t,f" >/dev/null 2>&1; then
-        log_message "WARNING" "No se pudo acceder a GDrive para retención"; return 0
+    if ! rclone lsf "$cloud_path" --dirs-only --format "t,f" >/dev/null 2>&1; then
+        log_message "WARNING" "No se pudo acceder a cloud storage para retención"; return 0
     fi
     
     local folder_count
@@ -35,7 +35,7 @@ cleanup_old_backups() {
     
     echo "$backup_folders" | head -n "$folders_to_delete" | while IFS=$'\t' read -r _timestamp folder_name; do
         [ -n "$folder_name" ] || continue
-        if rclone purge "${gdrive_path}/${folder_name}" 2>/dev/null; then
+        if rclone purge "${cloud_path}/${folder_name}" 2>/dev/null; then
             log_message "SUCCESS" "Eliminado: $folder_name"
         else
             log_message "ERROR" "Error eliminando: $folder_name"

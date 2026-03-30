@@ -410,7 +410,7 @@ Sistema de Backup Automatizado ${SERVER_NAME}"
 
 # Notificación de éxito para Fase 2 (Streaming)
 send_phase2_success() {
-    local elapsed="$1" final_size="$2" gdrive_path="$3"
+    local elapsed="$1" final_size="$2" cloud_path="$3"
     local subject="[OK] Backup Moodle - Fase 2 - Backup Moodledata Streaming - ${SERVER_NAME}"
     
     local body
@@ -419,7 +419,7 @@ send_phase2_success() {
 Detalles:
 - Servidor: ${SERVER_NAME}
 - Instancia: ${INSTANCE_NAME}
-- Ubicación: $gdrive_path
+- Ubicación: $cloud_path
 - Tamaño: $final_size
 - Tiempo total: $elapsed
 

@@ -94,30 +94,30 @@ backup_application() {
     return 1
 }
 
-# Subir archivos a Google Drive con rclone
-upload_to_gdrive() {
+# Subir archivos a Cloud Storage con rclone
+upload_to_cloud() {
     local backup_dir="$1"
-    local gdrive_path="$2"
+    local cloud_path="$2"
     
-    log_message "INFO" "Subiendo a Google Drive: $gdrive_path"
+    log_message "INFO" "Subiendo a cloud storage: $cloud_path"
     
     if ! command -v rclone >/dev/null 2>&1; then
         log_message "ERROR" "rclone no instalado"
         return 1
     fi
     
-    if ! rclone listremotes | grep -q "${GDRIVE_REMOTE}:"; then
-        log_message "ERROR" "Remote '${GDRIVE_REMOTE}' no encontrado en rclone"
+    if ! rclone listremotes | grep -q "${CLOUD_REMOTE}:"; then
+        log_message "ERROR" "Remote '${CLOUD_REMOTE}' no encontrado en rclone"
         return 1
     fi
     
-    rclone mkdir "$gdrive_path" 2>/dev/null
+    rclone mkdir "$cloud_path" 2>/dev/null
     
     local success=true
     for file in "$backup_dir"/*.zip; do
         [ -f "$file" ] || continue
         log_message "INFO" "Subiendo $(basename "$file")..."
-        if rclone move "$file" "$gdrive_path/" --progress 2>>"$MB_LOG_FILE"; then
+        if rclone move "$file" "$cloud_path/" --progress 2>>"$MB_LOG_FILE"; then
             log_message "SUCCESS" "$(basename "$file") subido"
         else
             log_message "ERROR" "Falló subida de $(basename "$file")"
@@ -127,7 +127,7 @@ upload_to_gdrive() {
     
     # Subir log
     [ -n "$MB_LOG_FILE" ] && [ -f "$MB_LOG_FILE" ] && \
-        rclone copy "$MB_LOG_FILE" "$gdrive_path/" 2>/dev/null
+        rclone copy "$MB_LOG_FILE" "$cloud_path/" 2>/dev/null
     
     [ "$success" = true ]
 }
@@ -166,7 +166,7 @@ run_phase1() {
     local log_file="${backup_dir}/${INSTANCE_NAME}_backup_log_${date_str}.log"
     init_logging "$log_file"
     
-    local gdrive_path="${GDRIVE_REMOTE}:${GDRIVE_BASE_PATH}/${INSTANCE_NAME}/${date_str}"
+    local cloud_path="${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/${INSTANCE_NAME}/${date_str}"
     
     log_message "INFO" "=== FASE 1: BACKUP BD + APP ==="
     log_message "INFO" "Configuración: $config_name | Instancia: $INSTANCE_NAME"
@@ -193,16 +193,16 @@ run_phase1() {
     cleanup_needed=false
     trap - ERR
     
-    # Subir a GDrive
-    local gdrive_success=false
+    # Subir a cloud
+    local cloud_success=false
     if [ "$db_success" = true ] && [ "$app_success" = true ]; then
-        upload_to_gdrive "$backup_dir" "$gdrive_path" && gdrive_success=true
+        upload_to_cloud "$backup_dir" "$cloud_path" && cloud_success=true
     fi
     
     # Resultado
     local elapsed
     elapsed=$(get_elapsed_time "$start_time")
-    if [ "$db_success" = true ] && [ "$app_success" = true ] && [ "$gdrive_success" = true ]; then
+    if [ "$db_success" = true ] && [ "$app_success" = true ] && [ "$cloud_success" = true ]; then
         log_message "SUCCESS" "=== FASE 1 COMPLETADA ($elapsed) ==="
         send_phase1_success "$elapsed" "$(get_file_size "$db_backup")" "$(get_file_size "$app_backup")"
         return 0

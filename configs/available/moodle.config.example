@@ -77,18 +77,22 @@ DB_HOST="localhost"
 DB_PORT=""
 
 # =============================================================================
-# CONFIGURACIÓN DE GOOGLE DRIVE (RCLONE)
+# CLOUD STORAGE (RCLONE)
 # =============================================================================
+# rclone soporta 70+ proveedores: Google Drive, S3, Azure Blob, Backblaze B2,
+# Dropbox, OneDrive, Wasabi, MinIO, SFTP, y más.
+# Para configurar: rclone config
 
 # Nombre del remote configurado en rclone
-# Para configurar: rclone config
-# Proveedores soportados: Google Drive, Dropbox, AWS S3, Azure, etc.
-GDRIVE_REMOTE="gdrive"
+CLOUD_REMOTE="gdrive"
 
 # Ruta base en el almacenamiento remoto donde guardar backups
-# Se creará automáticamente: GDRIVE_BASE_PATH/INSTANCE_NAME/fecha/
+# Se creará automáticamente: CLOUD_BASE_PATH/INSTANCE_NAME/fecha/
 # Ejemplo final: moodle_backups/mi-instalacion/15-10-2025/
-GDRIVE_BASE_PATH="moodle_backups"
+CLOUD_BASE_PATH="moodle_backups"
+
+# Backward compat (si migras de una versión anterior):
+# GDRIVE_REMOTE y GDRIVE_BASE_PATH siguen funcionando
 
 # =============================================================================
 # CONFIGURACIÓN DE PHP
@@ -176,7 +180,8 @@ BACKUP_MOODLEDATA="true"
 
 # Activar/desactivar streaming a nube (true/false)
 # Si es false, solo hace backup local
-STREAM_TO_GDRIVE="true"
+STREAM_TO_CLOUD="true"
+# Backward compat: STREAM_TO_GDRIVE también funciona
 
 # Archivos/directorios a excluir del backup de moodledata
 # Separados por espacios, usa patrones como "cache/* sessions/*"

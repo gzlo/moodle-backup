@@ -30,8 +30,8 @@ setup() {
     export PHP_CLI="php"
     export NOTIFICATION_EMAIL="test@example.com"
     export SERVER_NAME="test-server"
-    export GDRIVE_REMOTE="gdrive"
-    export GDRIVE_BASE_PATH="test_backups"
+    export CLOUD_REMOTE="gdrive"
+    export CLOUD_BASE_PATH="test_backups"
     export SYSTEM_USER="www-data"
 }
 
