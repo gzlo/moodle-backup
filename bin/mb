@@ -33,10 +33,24 @@ setup_colors "$@"
 # FUNCIONES DE PRESENTACIÓN
 # =============================================================================
 
+show_banner() {
+    echo -e "${YELLOW}"
+    cat << 'BANNER'
+    __  ___                 ____        ___               __                
+   /  |/  /___  ____  ____/ / /__     / _ ) ___ _ ____  / /__ __ __  ___   
+  / /|_/ / __ \/ __ \/ __  / / _ \   / _  |/ _ `// __/ /  '_// // / / _ \  
+ / /  / / /_/ / /_/ / /_/ / /  __/  /____/ \_,_/ \__/ /_/\_\ \_,_/ / .__/  
+/_/  /_/\____/\____/\__,_/_/\___/                                  /_/     
+BANNER
+    echo -e "${NC}"
+    echo -e "  ${GREEN}MB v${MB_VERSION}${NC} — Sistema de Backup para Moodle"
+    echo -e "  ${BLUE}Cloud Storage${NC} · ${BLUE}Streaming${NC} · ${BLUE}Multi-config${NC} · ${BLUE}Notificaciones${NC}"
+    echo ""
+}
+
 show_help() {
-    echo -e "${GREEN}MB (Moodle Backup) v${MB_VERSION} - Sistema de Backup Multi-Configuración${NC}
-    
-${YELLOW}━━━ COMANDOS PRINCIPALES ━━━${NC}
+    show_banner
+    echo -e "${YELLOW}━━━ COMANDOS PRINCIPALES ━━━${NC}
   ${BLUE}backup <config>${NC}         Ejecutar backup completo (Fase 1 + Fase 2)
   ${BLUE}run <config>${NC}            Ejecutar backup en background
   ${BLUE}list${NC}                    Listar configuraciones
@@ -207,7 +221,7 @@ case "$COMMAND" in
         show_help
         ;;
     version|-v|--version)
-        echo "mb v${MB_VERSION}"
+        show_banner
         ;;
     list)
         list_available_configs
