@@ -6,6 +6,10 @@ Este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+_Próximas mejoras pendientes._
+
+## [4.2.0] - 2026-03-30
+
 ### Added
 - Auto-detección de servidor y paneles de control (cPanel/WHM, Plesk, HestiaCP, CyberPanel, CloudPanel, DirectAdmin, Webmin/Virtualmin, ISPConfig, Docker)
 - Nuevo módulo `lib/server_detect.sh` con 8 funciones de detección
