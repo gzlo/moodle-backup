@@ -51,7 +51,7 @@ Requires:       bash >= 4.0, mysql, php-cli, tar, gzip, zip
 Recommends:     rclone
 
 %description
-Sistema de backup automatizado para Moodle con streaming a Google Drive,
+Sistema de backup automatizado para Moodle con streaming a cloud storage,
 modo mantenimiento automático, y notificaciones por email.
 
 %prep
@@ -82,7 +82,7 @@ ${INSTALL_PREFIX}/
 echo "✅ Moodle Backup CLI instalado. Ejecuta: mb help"
 
 %changelog
-* $(date "+%a %b %d %Y") GZLOnline <dev@gzlonline.com> - ${PKG_VERSION}-1
+* $(date "+%a %b %d %Y") GZLOnline <https://github.com/gzlo> - ${PKG_VERSION}-1
 - Complete rewrite as modular CLI tool
 EOF
 

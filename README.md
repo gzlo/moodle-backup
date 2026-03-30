@@ -320,36 +320,24 @@ Al crear una configuración con `mb moodlesite create`, el wizard detecta autom�
 
 > **Nota**: Si usas un nombre diferente a `gdrive`, simplemente ingrésalo cuando el wizard lo pregunte.
 
-## 🏷️ Releases y Versionado
+## 🏷️ Releases
 
-Este proyecto usa [Semantic Versioning](https://semver.org/) y GitHub Actions para compilar y publicar releases automáticamente.
+Los releases se publican en [GitHub Releases](https://github.com/gzlo/moodle-backup/releases) con paquetes `.deb` y `.rpm` listos para descargar.
 
-### Crear un release
+## 🤝 Contribuir
 
-```bash
-# 1. Actualizar versión en lib/utils.sh (MB_VERSION)
-# 2. Actualizar CHANGELOG.md con los cambios de la versión
-# 3. Commit los cambios
-git add -A && git commit -m "release: v4.1.0"
+Este proyecto acepta contribuciones via **Pull Requests**. No se permiten merges directos a `main`.
 
-# 4. Crear tag y push
-git tag v4.1.0
-git push origin main --tags
-```
+1. Fork el repositorio
+2. Crea una rama: `git checkout -b mi-feature`
+3. Haz tus cambios y agrega tests
+4. Envía un PR a `main`
 
-### ¿Qué pasa automáticamente?
+Ver [CONTRIBUTING.md](CONTRIBUTING.md) para más detalles.
 
-Cuando haces push de un tag `v*`, GitHub Actions:
+## 🔒 Seguridad
 
-1. ✅ Ejecuta lint (shellcheck) y tests (BATS)
-2. 📦 Compila paquete `.deb` (Debian/Ubuntu)
-3. 📦 Compila paquete `.rpm` (Fedora/RHEL/CentOS)
-4. 🏷️ Crea un **GitHub Release** con:
-   - Changelog extraído automáticamente de `CHANGELOG.md`
-   - Paquetes `.deb` y `.rpm` como assets descargables
-   - Checksums SHA256 de cada archivo
-
-Los releases quedan visibles en: `https://github.com/gzlo/moodle-backup/releases`
+Si encuentras una vulnerabilidad, **no abras un issue público**. Envía un reporte privado via [GitHub Security Advisories](https://github.com/gzlo/moodle-backup/security/advisories/new).
 
 ## 📝 Licencia
 

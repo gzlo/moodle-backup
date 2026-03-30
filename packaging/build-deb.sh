@@ -50,9 +50,9 @@ Priority: optional
 Architecture: ${PKG_ARCH}
 Depends: bash (>= 4.0), mysql-client | mariadb-client, php-cli, tar, gzip, zip
 Recommends: rclone, mailutils
-Maintainer: GZLOnline <dev@gzlonline.com>
+Maintainer: GZLOnline <https://github.com/gzlo>
 Description: Moodle Backup CLI Tool
- Sistema de backup automatizado para Moodle con streaming a Google Drive,
+ Sistema de backup automatizado para Moodle con streaming a cloud storage,
  modo mantenimiento automático, y notificaciones por email.
  Soporta múltiples instancias y retención configurable.
 Homepage: https://github.com/gzlo/moodle-backup
