@@ -58,7 +58,11 @@ modo mantenimiento automático, y notificaciones por email.
 %setup -q
 
 %install
-mkdir -p %{buildroot}${INSTALL_PREFIX}/{bin,lib,scripts,configs/available,configs/enabled}
+mkdir -p %{buildroot}${INSTALL_PREFIX}/bin
+mkdir -p %{buildroot}${INSTALL_PREFIX}/lib
+mkdir -p %{buildroot}${INSTALL_PREFIX}/scripts
+mkdir -p %{buildroot}${INSTALL_PREFIX}/configs/available
+mkdir -p %{buildroot}${INSTALL_PREFIX}/configs/enabled
 mkdir -p %{buildroot}/usr/local/bin
 mkdir -p %{buildroot}/var/log/moodle-backup
 
