@@ -101,6 +101,10 @@ validate_encryption() {
                 return 1
             fi
             ;;
+        *)
+            log_message "ERROR" "ENCRYPTION_METHOD desconocido: ${ENCRYPTION_METHOD}. Usar 'passphrase' o 'recipient'"
+            return 1
+            ;;
     esac
     return 0
 }

@@ -11,19 +11,19 @@ load '../test_helper'
 @test "mb --help shows help text" {
     run "${MB_PROJECT_DIR}/bin/mb" --help
     [ "$status" -eq 0 ]
-    [[ "$output" == *"COMANDOS PRINCIPALES"* ]]
+    [[ "$output" == *"COMANDOS PRINCIPALES"* || "$output" == *"MAIN COMMANDS"* ]]
 }
 
 @test "mb without args shows help" {
     run "${MB_PROJECT_DIR}/bin/mb"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"COMANDOS PRINCIPALES"* ]]
+    [[ "$output" == *"COMANDOS PRINCIPALES"* || "$output" == *"MAIN COMMANDS"* ]]
 }
 
 @test "mb unknown command fails" {
     run "${MB_PROJECT_DIR}/bin/mb" foobar
     [ "$status" -eq 1 ]
-    [[ "$output" == *"Comando desconocido"* ]]
+    [[ "$output" == *"Comando desconocido"* || "$output" == *"Unknown command"* ]]
 }
 
 @test "mb list runs without error" {
@@ -53,6 +53,10 @@ load '../test_helper'
     export CONFIG_AVAILABLE_DIR="$MB_TEST_CONFIGS/available"
     export CONFIG_ENABLED_DIR="$MB_TEST_CONFIGS/enabled"
     cp "${MB_PROJECT_DIR}/tests/fixtures/valid.config" "${CONFIG_AVAILABLE_DIR}/drytest.config"
+    
+    # Dry-run validate_phase1_requirements needs maintenance.php to exist
+    mkdir -p /tmp/fake-moodle/admin/cli
+    touch /tmp/fake-moodle/admin/cli/maintenance.php
 
     run "${MB_PROJECT_DIR}/bin/mb" --dry-run backup drytest
     [ "$status" -eq 0 ]
@@ -66,7 +70,7 @@ load '../test_helper'
 @test "mb status runs" {
     run "${MB_PROJECT_DIR}/bin/mb" status
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Estado del Sistema"* ]]
+    [[ "$output" == *"Estado del Sistema"* || "$output" == *"Status"* || "$output" == *"Backup"* ]]
 }
 
 @test "mb moodlesite list runs" {

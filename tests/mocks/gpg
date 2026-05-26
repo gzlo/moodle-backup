@@ -1,8 +1,23 @@
 #!/bin/bash
 echo "MOCK_GPG: $*" >> "${MB_TEST_DIR:-/tmp}/mock_calls.log"
+
+output_file=""
+prev=""
+for arg in "$@"; do
+    if [ "$prev" = "--output" ] && [ -n "$arg" ]; then
+        output_file="$arg"
+        break
+    fi
+    prev="$arg"
+done
+
 case "$1" in
     --version|-v) echo "mock-gpg 1.0" ;;
-    --batch) shift; shift; exit 0 ;;
+    --batch)
+        [ -n "$output_file" ] && touch "$output_file" 2>/dev/null || true
+        exit 0
+        ;;
+    --list-keys) echo "pub mock-key"; exit 0 ;;
     *) exit 0 ;;
 esac
 exit 0
