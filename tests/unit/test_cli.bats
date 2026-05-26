@@ -29,21 +29,25 @@ load '../test_helper'
 @test "mb list runs without error" {
     run "${MB_PROJECT_DIR}/bin/mb" list
     [ "$status" -eq 0 ]
+    [[ "$output" == *"Config"* ]]
 }
 
 @test "mb backup without config fails" {
     run "${MB_PROJECT_DIR}/bin/mb" backup
     [ "$status" -eq 1 ]
+    [[ "$output" == *"config"* || "$output" == *"Config"* ]]
 }
 
 @test "mb test without config fails" {
     run "${MB_PROJECT_DIR}/bin/mb" test
     [ "$status" -eq 1 ]
+    [[ "$output" == *"config"* || "$output" == *"Config"* ]]
 }
 
 @test "mb --dry-run parses correctly" {
     run "${MB_PROJECT_DIR}/bin/mb" --dry-run
     [ "$status" -eq 0 ]
+    [[ "$output" == *"--dry-run"* || "$output" == *"help"* || "$output" == *"COMANDOS"* || "$output" == *"COMMANDS"* ]]
 }
 
 @test "mb backup --dry-run usage appears in help" {

@@ -67,7 +67,7 @@ teardown() {
 @test "validate_phase1_requirements checks all dependencies" {
     init_logging "$MB_TEST_DIR/test.log"
     run validate_phase1_requirements
-    [[ "$output" == *"Requisitos"* ]] || true
+    [ "$status" -eq 0 ]
 }
 
 @test "upload_to_cloud tracks uploaded files on success" {
@@ -82,18 +82,24 @@ teardown() {
     [ "$status" -eq 0 ]
 }
 
-@test "run_phase2 cleanup removes pid file" {
+@test "run_phase2 streaming prerequisites detect missing moodledata" {
     load_lib "backup_streaming"
     init_logging "$MB_TEST_DIR/test.log"
-    local pid_file="/tmp/backup_stream_${INSTANCE_NAME}.pid"
+    export SRC_DATA="$MB_TEST_DIR/nonexistent-moodledata"
 
-    echo "99999" > "$pid_file"
-    run run_phase2 "test-config" || true
-    [ ! -f "$pid_file" ] || true
+    run check_streaming_prerequisites
+    [ "$status" -eq 1 ]
+}
+
+@test "run_phase2 streaming prerequisites pass with valid setup" {
+    load_lib "backup_streaming"
+    init_logging "$MB_TEST_DIR/test.log"
+
+    run check_streaming_prerequisites
+    [ "$status" -eq 0 ]
 }
 
 @test "orchestrator releases lock on success" {
-    load_lib "backup_lock"
     load_lib "backup_orchestrator"
     local lock_file="/tmp/backup_${INSTANCE_NAME}.lock"
 

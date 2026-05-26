@@ -25,8 +25,7 @@ teardown() {
 
 @test "load_moodle_config loads valid config" {
     run load_moodle_config "test-moodle"
-    # May fail on DB check, but should at least load the file
-    [[ "$output" == *"test-moodle"* ]] || true
+    [ "$status" -eq 0 ]
 }
 
 @test "validate_config_variables catches missing vars" {
