@@ -1,9 +1,19 @@
 #!/bin/bash
 echo "MOCK_RCLONE: $*" >> "${MB_TEST_DIR:-/tmp}/mock_calls.log"
+
+last_arg="${!#}"
+
 case "$1" in
     --version|-V) echo "mock-rclone 1.0" ;;
     listremotes) echo "gdrive:" ;;
-    lsd|ls|lsf) echo "test-folder/" ;;
+    lsd) echo "test-folder/" ;;
+    ls)
+        case "$last_arg" in
+            *.sha256) ;;  # empty = no checksum file
+            *) echo "    104857600 test-backup.tar.gz" ;;
+        esac
+        ;;
+    lsf) echo "test-backup.tar.gz" ;;
     cat) echo "mock-file-content" ;;
     rcat) cat >/dev/null ;;
     delete) true ;;
