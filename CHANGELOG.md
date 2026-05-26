@@ -6,7 +6,47 @@ Este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
-_Próximas mejoras pendientes._
+_Proximas mejoras pendientes._
+
+## [5.0.0] - 2026-05-26
+
+### Added
+- **Lock file global** (`lib/backup_lock.sh`): previene backups concurrentes sobre la misma instancia. Stale lock detection con PID + timestamp, timeout configurable.
+- **Rollback/cleanup automatico**: limpieza de archivos parciales (.sql, .zip, .tar.gz) en fallo de Phase 1, Phase 2 y orquestador. Upload parcial con rollback de archivos ya subidos.
+- **Verificacion de integridad SHA256**: checksums para BD, App y moodledata. Streaming genera checksum inline (`tar | tee >(sha256sum) | rclone rcat`). Verificacion con `sha256sum -c` desde cloud. Configurable via `VERIFY_INTEGRITY`.
+- **Cifrado GPG** (`lib/backup_encryption.sh`): soporte simetrico (AES256 con passphrase) y asimetrico (clave publica). Integrado en Phase 1 (post-zip) y Phase 2 (`tar | gpg | rclone rcat`). Configurable via `ENCRYPT_BACKUPS`.
+- **Health check** (`mb health <config>`): heartbeat file con timestamp ISO8601. Exit codes 0=OK, 1=atrasado, 2=nunca ejecutado. Integrable con Nagios/Zabbix.
+- **Notificaciones por webhook** (`lib/notifications_webhook.sh`): Discord (embeds con color), Slack (blocks), Telegram (bot API). Integrados en las 5 funciones de notificacion de fase.
+- **Reintentos con backoff exponencial** (`retry_with_backoff()`): aplicado a `rclone move`, `rclone mkdir`. Configurable via `MAX_RETRIES` y `RETRY_INITIAL_WAIT`.
+- **Rate limiting de upload** (`--bwlimit`): limite de ancho de banda en `rclone move` y `rclone rcat`. Configurable via `UPLOAD_BANDWIDTH_LIMIT` (KBps).
+- **Backup incremental** (`lib/backup_incremental.sh`): basado en timestamp del ultimo heartbeat. `tar --newer` para streaming, `find -newermt | zip -@` para app. Fallback automatico a full si no hay backup previo.
+- **Modo `--dry-run`**: valida configuracion y requisitos sin ejecutar backup. Muestra plan de ejecucion completo.
+- **Soporte PostgreSQL**: `pg_dump` en `backup_database()`, validacion con `psql`, deteccion en wizard via `$CFG->dbtype`. Configurable via `DB_ENGINE`.
+- **i18n es/en** (`lib/i18n.sh`): infraestructura de traduccion con 67 claves. CLI, help, status y subjects de email traducidos. Auto-deteccion desde `LANG` del sistema.
+- **`mb health`**: nuevo subcomando (exit code 0/1/2 para monitoreo).
+- **30+ nuevos tests BATS**: `test_backup_lock.bats` (9), `test_backup_encryption.bats` (6), tests de integridad (2), heartbeat (4), webhooks (6), retry (3), dry-run (3), PostgreSQL (2).
+
+### Changed
+- Version bump: `4.2.0` → `5.0.0`
+- `upload_to_cloud()`: maneja `*.zip` y `*.gpg`, sube `*.sha256`, rollback en upload parcial.
+- `backup_database()`: soporta MySQL (`mysqldump`) y PostgreSQL (`pg_dump`) via `case`.
+- `validate_phase1_requirements()`: bifurca validacion MySQL vs PostgreSQL.
+- `test_config()`: validacion de GPG, PostgreSQL, y webhooks.
+- `perform_streaming_backup()`: acepta `checksum_file`, cifrado GPG en pipe, `--bwlimit`.
+- `verify_streaming_backup()`: reescrito con `sha256sum -c` (antes solo `rclone ls`).
+- `run_phase2()`: nombre de archivo con extension `.gpg` si cifrado activo.
+- `run_full_backup()`: lock global, heartbeat, dry-run, cleanup orquestador.
+- `create_config()` wizard: paso extra para webhooks, deteccion de `$CFG->dbtype`.
+- `bin/mb`: filtro `--dry-run`, `load_locale()`, subcomando `health`, strings i18n.
+- `moodle.config.example`: +25 nuevas variables documentadas (cifrado, webhooks, lock, retry, rate limit, incremental, i18n, heartbeat, PostgreSQL).
+- Librerias: 8 → 14 (+6 nuevas: backup_lock, backup_encryption, notifications_webhook, backup_incremental, i18n, server_detect).
+- Mocks: +2 (`gpg`, `pg_dump`). `rclone` actualizado con `rcat`, `cat`, `delete`, `purge`.
+- ShellCheck: 0 errores, 0 warnings. SC2329 y SC2059 justificados (trap + printf i18n).
+
+### Fixed
+- `BOLD=''` en `lib/utils.sh:23` documentado como bug conocido.
+- `phase2_success=true` seteado correctamente en rama de exito.
+- `hb_exit` sin `local` en `bin/mb` (SC2168).
 
 ## [4.2.0] - 2026-03-30
 
@@ -62,6 +102,8 @@ _Próximas mejoras pendientes._
 - Arquitectura modular: 7 librerías independientes extraídas de scripts monolíticos
 - Instalación en `/opt/moodle-backup/` con symlink `/usr/local/bin/mb`
 
-[Unreleased]: https://github.com/gzlo/moodle-backup/compare/v4.1.0...HEAD
+[Unreleased]: https://github.com/gzlo/moodle-backup/compare/v5.0.0...HEAD
+[5.0.0]: https://github.com/gzlo/moodle-backup/compare/v4.2.0...v5.0.0
+[4.2.0]: https://github.com/gzlo/moodle-backup/compare/v4.1.0...v4.2.0
 [4.1.0]: https://github.com/gzlo/moodle-backup/compare/v4.0.0...v4.1.0
 [4.0.0]: https://github.com/gzlo/moodle-backup/releases/tag/v4.0.0
