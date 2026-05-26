@@ -1,6 +1,6 @@
 # 🗄️ Moodle Backup CLI (`mb`)
 
-Sistema de backup automatizado para Moodle con streaming a cloud storage (Google Drive, S3, Azure, Dropbox, etc. via rclone), modo mantenimiento, y notificaciones por email.
+Sistema de backup automatizado para Moodle con streaming a cloud storage (Google Drive, S3, Azure, Dropbox, etc. via rclone), cifrado GPG, modo mantenimiento, notificaciones por email y webhooks (Discord/Slack/Telegram).
 
 [![CI](https://github.com/gzlo/moodle-backup/actions/workflows/ci.yml/badge.svg)](https://github.com/gzlo/moodle-backup/actions/workflows/ci.yml)
 
@@ -14,14 +14,14 @@ curl -fsSL https://raw.githubusercontent.com/gzlo/moodle-backup/main/scripts/ins
 ### Opción 2: Paquete .deb (Debian/Ubuntu)
 ```bash
 # Descargar de GitHub Releases
-wget https://github.com/gzlo/moodle-backup/releases/latest/download/moodle-backup_4.0.0_all.deb
-sudo apt install ./moodle-backup_4.0.0_all.deb
+wget https://github.com/gzlo/moodle-backup/releases/latest/download/moodle-backup_5.0.0_all.deb
+sudo apt install ./moodle-backup_5.0.0_all.deb
 ```
 
 ### Opción 3: Paquete .rpm (RHEL/Fedora/CentOS)
 ```bash
-wget https://github.com/gzlo/moodle-backup/releases/latest/download/moodle-backup-4.0.0-1.noarch.rpm
-sudo dnf install ./moodle-backup-4.0.0-1.noarch.rpm
+wget https://github.com/gzlo/moodle-backup/releases/latest/download/moodle-backup-5.0.0-1.noarch.rpm
+sudo dnf install ./moodle-backup-5.0.0-1.noarch.rpm
 ```
 
 ### Opción 4: Desde el repo
@@ -39,11 +39,14 @@ mb moodlesite create mi-moodle
 
 # El wizard te pregunta:
 # 📂 Paso 1/5: Rutas (auto-detecta Moodle y moodledata)
-# 🗄️ Paso 2/5: Base de datos (lee config.php automáticamente)
+# 🗄️ Paso 2/5: Base de datos (lee config.php automáticamente, soporta MySQL/PostgreSQL)
 # ☁️ Paso 3/5: Cloud Storage (detecta remotes de rclone)
 # 📧 Paso 4/5: Notificaciones (email, servidor)
-# 📨 Paso 5/5: Transporte email (auto-detecta SMTP, msmtp, etc.)
+# 📨 Paso 5/5: Transporte email + webhooks (auto-detecta, opcional Discord/Slack/Telegram)
 # → Al final pregunta si habilitar. ¡Listo!
+
+# Validar sin ejecutar
+mb backup --dry-run mi-moodle
 
 # Probar que todo está bien
 mb test mi-moodle
@@ -57,6 +60,7 @@ mb backup mi-moodle
 | Comando | Descripción |
 |---------|-------------|
 | `mb backup <config>` | Ejecutar backup completo (Fase 1 + Fase 2) |
+| `mb backup --dry-run <config>` | Validar sin ejecutar |
 | `mb run <config>` | Ejecutar backup en background |
 | `mb list` | Listar configuraciones |
 | `mb status` | Estado del sistema |
@@ -64,6 +68,7 @@ mb backup mi-moodle
 | `mb logs <config>` | Ver logs recientes |
 | `mb test <config>` | Probar configuración |
 | `mb test-email <config>` | Probar envío de email |
+| `mb health <config>` | Estado del último backup (Nagios/Zabbix) |
 | `mb cron` | Monitor del cron |
 | `mb moodlesite <cmd>` | Gestión de configuraciones |
 
@@ -83,18 +88,23 @@ mb moodlesite test <nombre>     # Probar
 El backup se ejecuta en dos fases:
 
 ### Fase 1: Backup BD + Aplicación
-1. Activa modo mantenimiento de Moodle
-2. Dump de base de datos MySQL → ZIP
-3. Comprime directorio de aplicación → ZIP
-4. Desactiva modo mantenimiento
-5. Sube ZIPs a cloud storage con rclone
-6. Envía notificación por email
+1. **Adquiere lock global** (previene backups concurrentes)
+2. Activa modo mantenimiento de Moodle
+3. Dump de base de datos (MySQL/PostgreSQL) → ZIP
+4. Genera checksum SHA256
+5. **Cifra con GPG** (si `ENCRYPT_BACKUPS=true`)
+6. Comprime directorio de aplicación → ZIP
+7. Desactiva modo mantenimiento
+8. Sube a cloud storage con rclone (con reintentos y rate limiting)
+9. Envía notificación por email + webhooks
 
 ### Fase 2: Streaming Moodledata
 1. Comprime moodledata con tar+gzip
-2. **Streaming directo a cloud storage** (sin espacio local adicional)
-3. Verifica archivo en cloud storage
-4. Envía notificación por email
+2. **Cifra en tránsito con GPG** (si `ENCRYPT_BACKUPS=true`)
+3. Genera checksum SHA256 inline
+4. **Streaming directo a cloud storage** (sin espacio local adicional)
+5. **Verifica integridad** (`sha256sum -c` desde cloud)
+6. Envía notificación por email + webhooks
 
 ## ⚙️ Configuración
 
@@ -110,15 +120,28 @@ DB_NAME="moodle_db"
 DB_USER="moodle_user"
 DB_PASSWORD="secreto"
 DB_HOST="localhost"
+DB_ENGINE="mysql"            # mysql | pgsql
 CLOUD_REMOTE="gdrive"
 CLOUD_BASE_PATH="moodle_backups"
 PHP_CLI="/usr/bin/php"
 NOTIFICATION_EMAIL="admin@ejemplo.com"
 SERVER_NAME="mi-servidor"
 SYSTEM_USER="www-data"
-CRON_SCHEDULE="7"        # 1=diario, 4=semanal, 7=custom
+CRON_SCHEDULE="7"            # 1=diario, 4=semanal, 7=custom
 RETENTION_COPIES="2"
 MOODLEDATA_EXCLUDES="cache/* sessions/* temp/*"
+
+# Cifrado GPG (opcional, recomendado para GDPR/LOPD)
+ENCRYPT_BACKUPS="true"
+ENCRYPTION_METHOD="passphrase"
+GPG_PASSPHRASE="frase-segura"
+
+# Webhooks (opcionales)
+# DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/..."
+# SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..."
+
+# Idioma
+MB_LANG="auto"               # auto | es | en
 ```
 
 Ver `configs/available/moodle.config.example` para todas las opciones.
@@ -138,14 +161,21 @@ mb cron
 ```
 moodle-backup/
 ├── bin/mb                      # CLI entry point
-├── lib/                        # Librerías modulares
-│   ├── utils.sh                # Colores, helpers
+├── lib/                        # Librerías modulares (14)
+│   ├── utils.sh                # Colores, helpers, retry_with_backoff
 │   ├── logging.sh              # Sistema de logging
 │   ├── config.sh               # Gestión de configs + wizard
-│   ├── notifications.sh        # Notificaciones email
-│   ├── backup_maintenance.sh   # Fase 1: BD + App
+│   ├── i18n.sh                 # Internacionalización es/en
+│   ├── notifications.sh        # Notificaciones email (6 transportes)
+│   ├── notifications_webhook.sh# Notificaciones Discord/Slack/Telegram
+│   ├── backup_maintenance.sh   # Fase 1: BD (MySQL/PostgreSQL) + App
 │   ├── backup_streaming.sh     # Fase 2: moodledata streaming
-│   └── backup_orchestrator.sh  # Orquestador completo
+│   ├── backup_orchestrator.sh  # Orquestador + heartbeat + dry-run
+│   ├── backup_lock.sh          # Lock global anti-concurrencia
+│   ├── backup_encryption.sh    # Cifrado GPG
+│   ├── backup_incremental.sh   # Backup incremental
+│   ├── server_detect.sh        # Detección de panel/servidor/Moodle
+│   └── ...
 ├── configs/                    # Configuraciones
 │   ├── available/              # Configs disponibles
 │   └── enabled/                # Symlinks a configs activas
@@ -182,10 +212,14 @@ make lint
 
 ### Obligatorios
 - Bash ≥ 4.0
-- mysql client (mysql-client o mariadb-client)
+- mysql client o pg_dump (según `DB_ENGINE`)
 - PHP CLI
 - tar, gzip, zip
-- **rclone** (configurado con remote de cloud storage: Google Drive, S3, Azure, etc.) — ver sección abajo
+- **rclone** (configurado con remote de cloud storage)
+
+### Opcionales
+- **gpg** (para cifrado de backups, `ENCRYPT_BACKUPS=true`)
+- **curl** (para SMTP directo y webhooks)
 
 ### Verificar dependencias
 ```bash
@@ -342,6 +376,19 @@ Al crear una configuración con `mb moodlesite create`, el wizard detecta autom�
 ```
 
 > **Nota**: Si usas un nombre diferente a `gdrive`, simplemente ingrésalo cuando el wizard lo pregunte.
+
+## 📊 Monitoreo
+
+```bash
+# Ver estado del último backup (integrable con Nagios/Zabbix)
+mb health mi-moodle
+# → [OK] Backup OK - dentro del umbral     (exit 0)
+# → [ERROR] Backup atrasado - >24h sin éxito (exit 1)
+# → [WARNING] Nunca se ha ejecutado          (exit 2)
+
+# El heartbeat se guarda en /var/log/moodle-backup/heartbeats/
+cat /var/log/moodle-backup/heartbeats/heartbeat_mi-moodle
+```
 
 ## 🏷️ Releases
 
