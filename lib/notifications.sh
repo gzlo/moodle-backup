@@ -360,7 +360,7 @@ Log disponible en: ${MB_LOG_FILE:-N/A}
 Sistema de Backup Automatizado ${SERVER_NAME}"
 
      send_email "$subject" "$body" "$NOTIFICATION_EMAIL"
-    _notify_webhooks "error" "Fase 1 - BD+App" "$error_msg" "$elapsed"
+    declare -F _notify_webhooks >/dev/null 2>&1 && _notify_webhooks "error" "Fase 1 - BD+App" "$error_msg" "$elapsed"
 }
 
 # Notificación de éxito para Fase 1 (BD + App)
@@ -387,7 +387,7 @@ Archivos:
 Sistema de Backup Automatizado ${SERVER_NAME}"
 
     send_email "$subject" "$body" "$NOTIFICATION_EMAIL"
-    _notify_webhooks "success" "Fase 1 - BD+App" "DB: $db_size | App: $app_size" "$elapsed"
+    declare -F _notify_webhooks >/dev/null 2>&1 && _notify_webhooks "success" "Fase 1 - BD+App" "DB: $db_size | App: $app_size" "$elapsed"
 }
 
 # Notificación de error para Fase 2 (Streaming)
@@ -415,7 +415,7 @@ Log disponible en: ${MB_LOG_FILE:-N/A}
 Sistema de Backup Automatizado ${SERVER_NAME}"
 
     send_email "$subject" "$body" "$NOTIFICATION_EMAIL"
-    _notify_webhooks "error" "Fase 2 - Streaming" "$error_msg" "$elapsed"
+    declare -F _notify_webhooks >/dev/null 2>&1 && _notify_webhooks "error" "Fase 2 - Streaming" "$error_msg" "$elapsed"
 }
 
 # Notificación de éxito para Fase 2 (Streaming)
@@ -439,7 +439,7 @@ Detalles:
 Sistema de Backup Automatizado ${SERVER_NAME}"
 
     send_email "$subject" "$body" "$NOTIFICATION_EMAIL"
-    _notify_webhooks "success" "Fase 2 - Streaming" "Tamaño: $final_size | Path: $cloud_path" "$elapsed"
+    declare -F _notify_webhooks >/dev/null 2>&1 && _notify_webhooks "success" "Fase 2 - Streaming" "Tamaño: $final_size | Path: $cloud_path" "$elapsed"
 }
 
 # Notificación de progreso del orquestador
@@ -462,7 +462,7 @@ Servidor: ${SERVER_NAME}
 Sistema de Backup Automatizado ${SERVER_NAME}"
 
      send_email "$subject" "$body" "$NOTIFICATION_EMAIL"
-    _notify_webhooks "progress" "$stage" "$status" "$elapsed"
+    declare -F _notify_webhooks >/dev/null 2>&1 && _notify_webhooks "progress" "$stage" "$status" "$elapsed"
 }
 
 # Notificación final del orquestador
@@ -496,8 +496,8 @@ Sistema de Backup Automatizado ${SERVER_NAME}"
 
      send_email "$subject" "$body" "$NOTIFICATION_EMAIL"
     if [ "$success" = "true" ]; then
-        _notify_webhooks "final_success" "Completo" "Fase 1: $phase1_result | Fase 2: $phase2_result" "$elapsed"
+        declare -F _notify_webhooks >/dev/null 2>&1 && _notify_webhooks "final_success" "Completo" "Fase 1: $phase1_result | Fase 2: $phase2_result" "$elapsed"
     else
-        _notify_webhooks "final_error" "Completo" "Fase 1: $phase1_result | Fase 2: $phase2_result" "$elapsed"
+        declare -F _notify_webhooks >/dev/null 2>&1 && _notify_webhooks "final_error" "Completo" "Fase 1: $phase1_result | Fase 2: $phase2_result" "$elapsed"
     fi
 }
