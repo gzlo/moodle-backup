@@ -43,8 +43,7 @@ teardown() {
     for cmd in mysql mysqldump php rclone; do
         cp "$MB_PROJECT_DIR/tests/mocks/$cmd" "$stripped/"
     done
-    PATH="$stripped"
-    run validate_phase1_requirements
+    PATH="$stripped" run validate_phase1_requirements
     [ "$status" -eq 1 ]
 }
 
@@ -56,8 +55,7 @@ teardown() {
 exit 1
 HEREDOC
     chmod +x "$faildir/mysql"
-    PATH="$faildir:$MB_PROJECT_DIR/tests/mocks:$PATH"
-    run validate_phase1_requirements
+    PATH="$faildir:$MB_PROJECT_DIR/tests/mocks:$PATH" run validate_phase1_requirements
     [ "$status" -eq 1 ]
 }
 
@@ -67,8 +65,7 @@ HEREDOC
 }
 
 @test "validate_phase1_requirements passes with PostgreSQL and pg_dump" {
-    export DB_ENGINE="pgsql"
-    run validate_phase1_requirements
+    DB_ENGINE="pgsql" run validate_phase1_requirements
     [ "$status" -eq 0 ]
 }
 
@@ -78,8 +75,6 @@ HEREDOC
     for cmd in mysql mysqldump php rclone zip; do
         cp "$MB_PROJECT_DIR/tests/mocks/$cmd" "$no_pg/"
     done
-    PATH="$no_pg"
-    export DB_ENGINE="pgsql"
-    run validate_phase1_requirements
+    DB_ENGINE="pgsql" PATH="$no_pg" run validate_phase1_requirements
     [ "$status" -eq 1 ]
 }
