@@ -78,12 +78,12 @@ backup_database() {
         if zip -j "$db_backup" "$(basename "$temp_sql")" >/dev/null 2>&1 \
            && [ -f "$db_backup" ]; then
             rm -f "$temp_sql"
-            cd "$(dirname "$db_backup")" && sha256sum "$(basename "$db_backup")" > "${db_backup}.sha256" 2>/dev/null || true
+            { cd "$(dirname "$db_backup")" && sha256sum "$(basename "$db_backup")" > "${db_backup}.sha256"; } 2>/dev/null || true
 
             if [ "${ENCRYPT_BACKUPS:-false}" = "true" ]; then
                 if encrypt_file "$db_backup" "${db_backup}.gpg"; then
                     rm -f "${db_backup}.sha256" 2>/dev/null || true
-                    cd "$(dirname "$db_backup")" && sha256sum "$(basename "$db_backup").gpg" > "${db_backup}.gpg.sha256" 2>/dev/null || true
+                    { cd "$(dirname "$db_backup")" && sha256sum "$(basename "$db_backup").gpg" > "${db_backup}.gpg.sha256"; } 2>/dev/null || true
                     log_message "SUCCESS" "Backup BD cifrado: $(get_file_size "${db_backup}.gpg")"
                     echo "${db_backup}.gpg"
                     return 0
@@ -138,12 +138,12 @@ backup_application() {
     fi
 
     if [ "$zip_success" = "true" ] && [ -f "$app_backup" ]; then
-        cd "$(dirname "$app_backup")" && sha256sum "$(basename "$app_backup")" > "${app_backup}.sha256" 2>/dev/null || true
+        { cd "$(dirname "$app_backup")" && sha256sum "$(basename "$app_backup")" > "${app_backup}.sha256"; } 2>/dev/null || true
 
         if [ "${ENCRYPT_BACKUPS:-false}" = "true" ]; then
             if encrypt_file "$app_backup" "${app_backup}.gpg"; then
                 rm -f "${app_backup}.sha256" 2>/dev/null || true
-                cd "$(dirname "$app_backup")" && sha256sum "$(basename "$app_backup").gpg" > "${app_backup}.gpg.sha256" 2>/dev/null || true
+                { cd "$(dirname "$app_backup")" && sha256sum "$(basename "$app_backup").gpg" > "${app_backup}.gpg.sha256"; } 2>/dev/null || true
                 log_message "SUCCESS" "Backup app cifrado: $(get_file_size "${app_backup}.gpg")"
                 echo "${app_backup}.gpg"
                 return 0
