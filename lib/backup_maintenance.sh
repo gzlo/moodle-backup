@@ -277,7 +277,7 @@ run_phase1() {
     
     # Cleanup en caso de error
     local phase1_success=false
-    # shellcheck disable=SC2329
+    # shellcheck disable=SC2329,SC2317
     _phase1_cleanup() {
         if [ "$phase1_success" != "true" ]; then
             log_message "WARNING" "Limpiando archivos parciales de Fase 1..."

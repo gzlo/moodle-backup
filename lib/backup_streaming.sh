@@ -168,7 +168,7 @@ run_phase2() {
     
     echo $$ > "$pid_file"
     local phase2_success=false
-    # shellcheck disable=SC2329
+    # shellcheck disable=SC2329,SC2317
     _phase2_cleanup() {
         rm -f "$pid_file" "$checksum_file"
         if [ "$phase2_success" != "true" ]; then

@@ -118,7 +118,13 @@ Fecha: $(date)"
             ;;
     esac
 
-    _send_via_discord "$title" "$content" "$color" && log_message "INFO" "Notificacion Discord enviada" || true
-    _send_via_slack "$title" "$content" "$color" && log_message "INFO" "Notificacion Slack enviada" || true
-    _send_via_telegram "${title}\n${content}" && log_message "INFO" "Notificacion Telegram enviada" || true
+    if _send_via_discord "$title" "$content" "$color"; then
+        log_message "INFO" "Notificacion Discord enviada"
+    fi
+    if _send_via_slack "$title" "$content" "$color"; then
+        log_message "INFO" "Notificacion Slack enviada"
+    fi
+    if _send_via_telegram "${title}\n${content}"; then
+        log_message "INFO" "Notificacion Telegram enviada"
+    fi
 }

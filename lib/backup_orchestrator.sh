@@ -117,7 +117,7 @@ run_full_backup() {
 
     acquire_lock "$INSTANCE_NAME" || return 1
     local backup_success=false
-    # shellcheck disable=SC2329
+    # shellcheck disable=SC2329,SC2317
     _orchestrator_cleanup() {
         release_lock "$INSTANCE_NAME"
         if [ "$backup_success" != "true" ]; then
