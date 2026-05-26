@@ -40,11 +40,10 @@ teardown() {
 @test "validate_phase1_requirements fails when required command missing" {
     local stripped="$MB_TEST_DIR/cmd-stripped"
     mkdir -p "$stripped"
-    cp "$MB_PROJECT_DIR/tests/mocks/mysql" "$stripped/"
-    cp "$MB_PROJECT_DIR/tests/mocks/mysqldump" "$stripped/"
-    cp "$MB_PROJECT_DIR/tests/mocks/php" "$stripped/"
-    cp "$MB_PROJECT_DIR/tests/mocks/rclone" "$stripped/"
-    export PATH="$stripped:$PATH"
+    for cmd in mysql mysqldump php rclone; do
+        cp "$MB_PROJECT_DIR/tests/mocks/$cmd" "$stripped/"
+    done
+    export PATH="$stripped"
     run validate_phase1_requirements
     [ "$status" -eq 1 ]
 }
@@ -76,12 +75,10 @@ HEREDOC
 @test "validate_phase1_requirements fails with PostgreSQL and no pg_dump" {
     local no_pg="$MB_TEST_DIR/no-pg"
     mkdir -p "$no_pg"
-    cp "$MB_PROJECT_DIR/tests/mocks/mysql" "$no_pg/"
-    cp "$MB_PROJECT_DIR/tests/mocks/mysqldump" "$no_pg/"
-    cp "$MB_PROJECT_DIR/tests/mocks/php" "$no_pg/"
-    cp "$MB_PROJECT_DIR/tests/mocks/rclone" "$no_pg/"
-    cp "$MB_PROJECT_DIR/tests/mocks/zip" "$no_pg/"
-    export PATH="$no_pg:$PATH"
+    for cmd in mysql mysqldump php rclone zip; do
+        cp "$MB_PROJECT_DIR/tests/mocks/$cmd" "$no_pg/"
+    done
+    export PATH="$no_pg"
     export DB_ENGINE="pgsql"
     run validate_phase1_requirements
     [ "$status" -eq 1 ]

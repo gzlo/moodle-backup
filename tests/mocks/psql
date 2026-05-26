@@ -1,0 +1,7 @@
+#!/bin/bash
+echo "MOCK_PSQL: $*" >> "${MB_TEST_DIR:-/tmp}/mock_calls.log"
+case "$1" in
+    --version|-V) echo "mock-psql 1.0" ;;
+    *) exit 0 ;;
+esac
+exit 0
