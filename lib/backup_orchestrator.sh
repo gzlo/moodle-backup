@@ -44,13 +44,88 @@ cleanup_old_backups() {
 }
 
 # Ejecutar backup completo (Fase 1 + Fase 2)
+HEARTBEAT_DIR="${HEARTBEAT_DIR:-/var/log/moodle-backup/heartbeats}"
+
+write_heartbeat() {
+    local instance="$1" status="$2" elapsed="$3" p1="$4" p2="$5"
+    mkdir -p "$HEARTBEAT_DIR"
+    local hb_file="${HEARTBEAT_DIR}/heartbeat_${instance}"
+    printf "%s|%s|%s|%s|%s\n" "$(date -Iseconds)" "$status" "$elapsed" "$p1" "$p2" > "$hb_file"
+}
+
+check_heartbeat() {
+    local instance="$1"
+    local max_hours="${2:-24}"
+    local hb_file="${HEARTBEAT_DIR}/heartbeat_${instance}"
+
+    if [ ! -f "$hb_file" ]; then
+        echo "HEARTBEAT: never"
+        return 2
+    fi
+
+    local ts status elapsed p1 p2
+    IFS='|' read -r ts status elapsed p1 p2 < "$hb_file"
+    local now_epoch ts_epoch hours
+    now_epoch=$(date +%s)
+    ts_epoch=$(date -d "$ts" +%s 2>/dev/null || echo 0)
+    hours=$(( (now_epoch - ts_epoch) / 3600 ))
+
+    echo "HEARTBEAT: $status | last: $ts (${hours}h ago) | elapsed: $elapsed | phase1: $p1 | phase2: $p2"
+
+    if [ "$hours" -gt "$max_hours" ]; then
+        return 1
+    fi
+    return 0
+}
+
 run_full_backup() {
     local config_name="$1"
     local start_time
     start_time=$(date +%s)
     local orchestrator_log
     orchestrator_log="/tmp/backup_orquestador_${INSTANCE_NAME}_$(date +%d-%m-%Y_%H%M%S).log"
-    
+
+    if [ "${DRY_RUN:-false}" = "true" ]; then
+        init_logging "$orchestrator_log"
+        log_message "INFO" "====== DRY-RUN: VALIDANDO SIN EJECUTAR ======"
+        log_message "INFO" "Configuracion: $config_name | Instancia: $INSTANCE_NAME"
+        log_message "INFO" "Moodle: $SRC_APP | BD: $DB_NAME@${DB_HOST:-localhost}"
+        log_message "INFO" "Cloud: ${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/${INSTANCE_NAME}"
+        log_message "INFO" "Notificaciones: ${NOTIFICATION_EMAIL}"
+        log_message "INFO" "Cifrado: ${ENCRYPT_BACKUPS:-false} | Incremental: ${INCREMENTAL_BACKUP:-false}"
+        log_message "INFO" "Retencion: ${RETENTION_COPIES:-2} copias"
+
+        log_message "INFO" "--- Plan de ejecucion ---"
+        log_message "INFO" "1. Validar requisitos (mysql, rclone, mantenimiento)"
+        log_message "INFO" "2. Activar modo mantenimiento"
+        log_message "INFO" "3. Backup BD → ${BACKUP_BASE}/${INSTANCE_NAME}/fecha/"
+        log_message "INFO" "4. Backup App → ${BACKUP_BASE}/${INSTANCE_NAME}/fecha/"
+        log_message "INFO" "5. Desactivar modo mantenimiento"
+        log_message "INFO" "6. Subir a ${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/${INSTANCE_NAME}/fecha/"
+        log_message "INFO" "7. Streaming moodledata → ${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/${INSTANCE_NAME}/fecha/"
+
+        if validate_phase1_requirements 2>/dev/null; then
+            log_message "SUCCESS" "====== DRY-RUN: VALIDACION OK ======"
+            rm -f "$orchestrator_log"
+            return 0
+        else
+            log_message "ERROR" "====== DRY-RUN: VALIDACION FALLIDA ======"
+            rm -f "$orchestrator_log"
+            return 1
+        fi
+    fi
+
+    acquire_lock "$INSTANCE_NAME" || return 1
+    local backup_success=false
+    # shellcheck disable=SC2329
+    _orchestrator_cleanup() {
+        release_lock "$INSTANCE_NAME"
+        if [ "$backup_success" != "true" ]; then
+            rm -f "$orchestrator_log" 2>/dev/null || true
+        fi
+    }
+    trap _orchestrator_cleanup EXIT
+
     init_logging "$orchestrator_log"
     
     log_message "INFO" "====== INICIANDO BACKUP COMPLETO ======"
@@ -103,10 +178,13 @@ run_full_backup() {
     log_message "INFO" "Fase 2: $phase2_result"
     
     if [ "$phase1_success" = true ] && [ "$phase2_success" = true ]; then
+        backup_success=true
+        write_heartbeat "$INSTANCE_NAME" "success" "$total_elapsed" "$phase1_result" "$phase2_result"
         log_message "SUCCESS" "====== BACKUP COMPLETO EXITOSO ======"
         send_final_notification "true" "$phase1_result" "$phase2_result" "$total_elapsed"
         return 0
     else
+        write_heartbeat "$INSTANCE_NAME" "failed" "$total_elapsed" "$phase1_result" "$phase2_result"
         log_message "ERROR" "====== BACKUP COMPLETO CON ERRORES ======"
         send_final_notification "false" "$phase1_result" "$phase2_result" "$total_elapsed"
         return 1

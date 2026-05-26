@@ -4,7 +4,7 @@
 # =============================================================================
 
 # Versión del CLI
-export MB_VERSION="4.2.0"
+export MB_VERSION="5.0.0"
 
 # Detectar soporte de colores
 detect_color_support() {
@@ -57,6 +57,31 @@ month_spanish() {
     local months=("" "Enero" "Febrero" "Marzo" "Abril" "Mayo" "Junio"
                   "Julio" "Agosto" "Septiembre" "Octubre" "Noviembre" "Diciembre")
     echo "${months[$((10#$month))]}"
+}
+
+# Reintentar comando con backoff exponencial
+retry_with_backoff() {
+    local max_retries="${1:-3}"
+    local initial_wait="${2:-5}"
+    shift 2
+
+    local attempt=1 wait=$initial_wait
+
+    while [ $attempt -le "$max_retries" ]; do
+        if "$@"; then
+            return 0
+        fi
+
+        if [ $attempt -lt "$max_retries" ]; then
+            log_message "WARNING" "Intento $attempt/$max_retries fallo. Reintentando en ${wait}s..."
+            sleep "$wait"
+            wait=$((wait * 2))
+        fi
+        attempt=$((attempt + 1))
+    done
+
+    log_message "ERROR" "Agotados $max_retries intentos"
+    return 1
 }
 
 # Inicializar colores por defecto

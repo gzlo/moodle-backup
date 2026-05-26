@@ -90,3 +90,55 @@ teardown() {
     [[ "$output" == *"Enviando email de prueba"* ]]
     [[ "$output" == *"enviado correctamente"* ]]
 }
+
+@test "_send_via_discord skips when URL is empty" {
+    load_lib "notifications_webhook"
+    export DISCORD_WEBHOOK_URL=""
+    run _send_via_discord "Test" "Body" "65280"
+    [ "$status" -eq 1 ]
+}
+
+@test "_send_via_slack skips when URL is empty" {
+    load_lib "notifications_webhook"
+    export SLACK_WEBHOOK_URL=""
+    run _send_via_slack "Test" "Body" "65280"
+    [ "$status" -eq 1 ]
+}
+
+@test "_send_via_telegram skips when token is empty" {
+    load_lib "notifications_webhook"
+    export TELEGRAM_BOT_TOKEN=""
+    run _send_via_telegram "Test"
+    [ "$status" -eq 1 ]
+}
+
+@test "_notify_webhooks success skips when WEBHOOK_NOTIFY_SUCCESS=false" {
+    load_lib "notifications_webhook"
+    export WEBHOOK_NOTIFY_SUCCESS="false"
+    export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/test"
+    export INSTANCE_NAME="test-moodle"
+    export SERVER_NAME="test-server"
+    run _notify_webhooks "success" "Phase 1" "OK" "05:00"
+    [ "$status" -eq 0 ]
+}
+
+@test "_notify_webhooks error always sends" {
+    load_lib "notifications_webhook"
+    export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/test"
+    export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/test"
+    export INSTANCE_NAME="test-moodle"
+    export SERVER_NAME="test-server"
+    run _notify_webhooks "error" "Phase 1" "DB fail" "01:00"
+    [ "$status" -eq 0 ]
+}
+
+@test "_notify_webhooks with no webhooks configured returns 0" {
+    load_lib "notifications_webhook"
+    export DISCORD_WEBHOOK_URL=""
+    export SLACK_WEBHOOK_URL=""
+    export TELEGRAM_BOT_TOKEN=""
+    export INSTANCE_NAME="test-moodle"
+    export SERVER_NAME="test-server"
+    run _notify_webhooks "error" "Phase 1" "test" "00:00"
+    [ "$status" -eq 0 ]
+}

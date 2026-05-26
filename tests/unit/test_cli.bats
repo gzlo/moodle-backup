@@ -41,6 +41,28 @@ load '../test_helper'
     [ "$status" -eq 1 ]
 }
 
+@test "mb --dry-run parses correctly" {
+    run "${MB_PROJECT_DIR}/bin/mb" --dry-run
+    [ "$status" -eq 0 ]
+}
+
+@test "mb backup --dry-run with valid config validates" {
+    load_lib "config"
+    setup_test_configs
+    export CONFIG_BASE_DIR="$MB_TEST_CONFIGS"
+    export CONFIG_AVAILABLE_DIR="$MB_TEST_CONFIGS/available"
+    export CONFIG_ENABLED_DIR="$MB_TEST_CONFIGS/enabled"
+    cp "${MB_PROJECT_DIR}/tests/fixtures/valid.config" "${CONFIG_AVAILABLE_DIR}/drytest.config"
+
+    run "${MB_PROJECT_DIR}/bin/mb" --dry-run backup drytest
+    [ "$status" -eq 0 ]
+}
+
+@test "mb backup --dry-run usage appears in help" {
+    run "${MB_PROJECT_DIR}/bin/mb" --help
+    [[ "$output" == *"--dry-run"* ]]
+}
+
 @test "mb status runs" {
     run "${MB_PROJECT_DIR}/bin/mb" status
     [ "$status" -eq 0 ]

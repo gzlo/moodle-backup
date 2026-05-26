@@ -335,7 +335,10 @@ Moodle Backup CLI v${MB_VERSION:-4.x}"
 # Notificación de error para Fase 1 (BD + App)
 send_phase1_error() {
     local error_msg="$1" elapsed="$2"
-    local subject="[CRITICO] Backup Moodle - Fase 1 - Backup BD+App - ${SERVER_NAME}"
+    local subject
+    # shellcheck disable=SC2059
+    # shellcheck disable=SC2059
+    subject=$(printf "$(_ subject_phase1_error)" "$SERVER_NAME")
     
     local body
     body="BACKUP MOODLE FALLIDO - $(date)
@@ -356,13 +359,16 @@ Log disponible en: ${MB_LOG_FILE:-N/A}
 ---
 Sistema de Backup Automatizado ${SERVER_NAME}"
 
-    send_email "$subject" "$body" "$NOTIFICATION_EMAIL"
+     send_email "$subject" "$body" "$NOTIFICATION_EMAIL"
+    _notify_webhooks "error" "Fase 1 - BD+App" "$error_msg" "$elapsed"
 }
 
 # Notificación de éxito para Fase 1 (BD + App)
 send_phase1_success() {
     local elapsed="$1" db_size="$2" app_size="$3"
-    local subject="[EXITO] Backup Moodle - Fase 1 - Backup BD+App - ${SERVER_NAME}"
+    local subject
+    # shellcheck disable=SC2059
+    subject=$(printf "$(_ subject_phase1_ok)" "$SERVER_NAME")
     
     local body
     body="BACKUP ${INSTANCE_NAME} COMPLETADO - $(date)
@@ -381,12 +387,15 @@ Archivos:
 Sistema de Backup Automatizado ${SERVER_NAME}"
 
     send_email "$subject" "$body" "$NOTIFICATION_EMAIL"
+    _notify_webhooks "success" "Fase 1 - BD+App" "DB: $db_size | App: $app_size" "$elapsed"
 }
 
 # Notificación de error para Fase 2 (Streaming)
 send_phase2_error() {
     local error_msg="$1" elapsed="$2"
-    local subject="[CRITICO] Backup Moodle - Fase 2 - Backup Moodledata Streaming - ${SERVER_NAME}"
+    local subject
+    # shellcheck disable=SC2059
+    subject=$(printf "$(_ subject_phase2_error)" "$SERVER_NAME")
     
     local body
     body="BACKUP ${INSTANCE_NAME} MOODLEDATA FALLIDO - $(date)
@@ -406,12 +415,15 @@ Log disponible en: ${MB_LOG_FILE:-N/A}
 Sistema de Backup Automatizado ${SERVER_NAME}"
 
     send_email "$subject" "$body" "$NOTIFICATION_EMAIL"
+    _notify_webhooks "error" "Fase 2 - Streaming" "$error_msg" "$elapsed"
 }
 
 # Notificación de éxito para Fase 2 (Streaming)
 send_phase2_success() {
     local elapsed="$1" final_size="$2" cloud_path="$3"
-    local subject="[OK] Backup Moodle - Fase 2 - Backup Moodledata Streaming - ${SERVER_NAME}"
+    local subject
+    # shellcheck disable=SC2059
+    subject=$(printf "$(_ subject_phase2_ok)" "$SERVER_NAME")
     
     local body
     body="BACKUP ${INSTANCE_NAME} MOODLEDATA COMPLETADO - $(date)
@@ -427,12 +439,15 @@ Detalles:
 Sistema de Backup Automatizado ${SERVER_NAME}"
 
     send_email "$subject" "$body" "$NOTIFICATION_EMAIL"
+    _notify_webhooks "success" "Fase 2 - Streaming" "Tamaño: $final_size | Path: $cloud_path" "$elapsed"
 }
 
 # Notificación de progreso del orquestador
 send_progress_notification() {
     local stage="$1" status="$2" elapsed="$3"
-    local subject="[INFO] Backup Moodle - $stage - ${SERVER_NAME}"
+    local subject
+    # shellcheck disable=SC2059
+    subject=$(printf "$(_ subject_progress)" "$stage" "$SERVER_NAME")
     
     local body
     body="BACKUP ${INSTANCE_NAME} - PROGRESO - $(date)
@@ -446,7 +461,8 @@ Servidor: ${SERVER_NAME}
 ---
 Sistema de Backup Automatizado ${SERVER_NAME}"
 
-    send_email "$subject" "$body" "$NOTIFICATION_EMAIL"
+     send_email "$subject" "$body" "$NOTIFICATION_EMAIL"
+    _notify_webhooks "progress" "$stage" "$status" "$elapsed"
 }
 
 # Notificación final del orquestador
@@ -455,10 +471,12 @@ send_final_notification() {
     
     local subject status
     if [ "$success" = "true" ]; then
-        subject="[EXITO] Backup Completo TERMINADO - ${SERVER_NAME}"
+        # shellcheck disable=SC2059
+        subject=$(printf "$(_ subject_final_ok)" "$SERVER_NAME")
         status="COMPLETADO EXITOSAMENTE"
     else
-        subject="[ERROR] Backup Completo FALLO - ${SERVER_NAME}"
+        # shellcheck disable=SC2059
+        subject=$(printf "$(_ subject_final_error)" "$SERVER_NAME")
         status="COMPLETADO CON ERRORES"
     fi
     
@@ -476,5 +494,10 @@ Instancia: ${INSTANCE_NAME}
 ---
 Sistema de Backup Automatizado ${SERVER_NAME}"
 
-    send_email "$subject" "$body" "$NOTIFICATION_EMAIL"
+     send_email "$subject" "$body" "$NOTIFICATION_EMAIL"
+    if [ "$success" = "true" ]; then
+        _notify_webhooks "final_success" "Completo" "Fase 1: $phase1_result | Fase 2: $phase2_result" "$elapsed"
+    else
+        _notify_webhooks "final_error" "Completo" "Fase 1: $phase1_result | Fase 2: $phase2_result" "$elapsed"
+    fi
 }

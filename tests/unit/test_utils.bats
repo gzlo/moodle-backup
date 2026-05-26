@@ -3,7 +3,14 @@
 load '../test_helper'
 
 setup() {
+    setup_test_env
     load_lib "utils"
+    load_lib "logging"
+    init_logging "$MB_TEST_DIR/test.log"
+}
+
+teardown() {
+    teardown_test_env
 }
 
 @test "MB_VERSION is defined" {
@@ -62,5 +69,32 @@ setup() {
 
 @test "detect_color_support respects --no-color flag" {
     run detect_color_support "--no-color"
+    [ "$status" -eq 1 ]
+}
+
+@test "retry_with_backoff succeeds on first attempt" {
+    run retry_with_backoff 3 1 true
+    [ "$status" -eq 0 ]
+}
+
+@test "retry_with_backoff retries on failure then succeeds" {
+    local attempt_file="$MB_TEST_DIR/retry_count"
+    echo "0" > "$attempt_file"
+
+    _flaky_cmd() {
+        local count
+        count=$(cat "$attempt_file")
+        count=$((count + 1))
+        echo "$count" > "$attempt_file"
+        [ "$count" -ge 2 ] && return 0
+        return 1
+    }
+
+    run retry_with_backoff 3 0 _flaky_cmd
+    [ "$status" -eq 0 ]
+}
+
+@test "retry_with_backoff fails after exhausting retries" {
+    run retry_with_backoff 2 0 false
     [ "$status" -eq 1 ]
 }

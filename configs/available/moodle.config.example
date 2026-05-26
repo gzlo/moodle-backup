@@ -76,6 +76,10 @@ DB_HOST="localhost"
 # PostgreSQL default: 5432
 DB_PORT=""
 
+# Motor de base de datos: "mysql" | "pgsql"
+# Moodle soporta MySQL/MariaDB y PostgreSQL
+DB_ENGINE="mysql"
+
 # =============================================================================
 # CLOUD STORAGE (RCLONE)
 # =============================================================================
@@ -143,6 +147,19 @@ SERVER_NAME="mi-servidor-moodle"
 
 # Usuario del sistema bajo el cual corre Moodle (para permisos)
 SYSTEM_USER="www-data"
+
+# --- Webhooks (opcionales, complementan el email) ---
+# Discord: https://discord.com/api/webhooks/...
+# Slack: https://hooks.slack.com/services/...
+# Telegram: obtener token con @BotFather y chat ID del grupo/canal
+DISCORD_WEBHOOK_URL=""
+SLACK_WEBHOOK_URL=""
+TELEGRAM_BOT_TOKEN=""
+TELEGRAM_CHAT_ID=""
+
+# Notificar tambien backups exitosos por webhook (true/false)
+# Los errores siempre se notifican. Los exitos solo si esta en true.
+WEBHOOK_NOTIFY_SUCCESS="false"
 
 # =============================================================================
 # CONFIGURACIÓN DE CRON (AUTOMATIZACIÓN)
@@ -217,6 +234,52 @@ COMPRESSION_LEVEL="6"
 COMPRESSION_ALGORITHM="gzip"
 
 # =============================================================================
+# CONFIGURACIÓN DE CIFRADO GPG
+# =============================================================================
+
+# Activar cifrado de backups con GPG (true/false)
+# Obligatorio para cumplir con GDPR/LOPD si los backups contienen datos personales
+ENCRYPT_BACKUPS="false"
+
+# Metodo de cifrado: passphrase (simetrico) | recipient (asimetrico con clave publica)
+# passphrase = misma clave para cifrar/descifrar, mas simple
+# recipient = cifra con clave publica, solo el dueno de la clave privada puede descifrar
+ENCRYPTION_METHOD="passphrase"
+
+# Frase de cifrado simetrico (solo si ENCRYPTION_METHOD=passphrase)
+GPG_PASSPHRASE=""
+
+# Destinatario para cifrado asimetrico (solo si ENCRYPTION_METHOD=recipient)
+# Debe ser un key ID o email con clave publica importada: gpg --import clave.asc
+GPG_RECIPIENT=""
+
+# =============================================================================
+# CONFIGURACIÓN DE CONCURRENCIA Y LOCK
+# =============================================================================
+
+# Tiempo máximo en segundos antes de considerar un lock como stale
+# Si un backup se interrumpe abruptamente, el lock se libera tras este timeout
+BACKUP_LOCK_TIMEOUT="3600"
+
+# Maximo de horas desde el ultimo backup exitoso antes de alertar
+# Usado por: mb health <config> (exit code 0=OK, 1=atrasado, 2=nunca ejecutado)
+HEARTBEAT_MAX_HOURS="24"
+
+# Reintentos con backoff exponencial para operaciones de red
+# Numero maximo de intentos para uploads fallidos
+MAX_RETRIES="3"
+# Tiempo de espera inicial en segundos (se duplica en cada reintento)
+RETRY_INITIAL_WAIT="5"
+
+# Limite de ancho de banda para uploads (KBps, vacio = sin limite)
+# Ej: "5120" = 5 MB/s, "10240" = 10 MB/s
+UPLOAD_BANDWIDTH_LIMIT=""
+
+# Idioma del CLI: "auto" | "es" | "en"
+# "auto" detecta desde LANG del sistema. Los logs y notificaciones usan el idioma del CLI.
+MB_LANG="auto"
+
+# =============================================================================
 # CONFIGURACIÓN DE LOGGING
 # =============================================================================
 
@@ -227,16 +290,21 @@ LOG_LEVEL="INFO"
 LOG_RETENTION_DAYS="30"
 
 # Activar verificación de integridad de archivos (true/false)
-# Útil para detectar corrupción pero consume más tiempo
-VERIFY_INTEGRITY="false"
+# Genera checksums SHA256 y los verifica contra el archivo en cloud
+VERIFY_INTEGRITY="true"
 
 # =============================================================================
 # CONFIGURACIÓN EXPERIMENTAL
 # =============================================================================
 
 # Usar compresión incremental (experimental, true/false)
-# Solo incluye archivos modificados desde último backup
+# Solo incluye archivos modificados desde el ultimo backup exitoso.
+# moodledata usa tar --newer, la aplicacion usa zip -u.
+# La base de datos SIEMPRE hace dump completo (el incremental binario no esta soportado).
 INCREMENTAL_BACKUP="false"
+
+# Origen del timestamp para incremental: "heartbeat" | timestamp_file
+INCREMENTAL_BASED_ON="heartbeat"
 
 # Activar backup paralelo de moodledata (experimental, true/false)
 # Puede acelerar el proceso pero usa más recursos

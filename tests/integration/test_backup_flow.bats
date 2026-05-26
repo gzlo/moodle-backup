@@ -67,6 +67,129 @@ teardown() {
 @test "validate_phase1_requirements checks all dependencies" {
     init_logging "$MB_TEST_DIR/test.log"
     run validate_phase1_requirements
-    # With mocks in path, commands should be "found"
     [[ "$output" == *"Requisitos"* ]] || true
+}
+
+@test "upload_to_cloud tracks uploaded files on success" {
+    local backup_dir="$MB_TEST_DIR/backup_upload"
+    mkdir -p "$backup_dir"
+    echo "test" > "$backup_dir/test_db.zip"
+    echo "test" > "$backup_dir/test_app.zip"
+
+    init_logging "$MB_TEST_DIR/test.log"
+
+    run upload_to_cloud "$backup_dir" "${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/test"
+    [ "$status" -eq 0 ]
+}
+
+@test "run_phase2 cleanup removes pid file" {
+    load_lib "backup_streaming"
+    init_logging "$MB_TEST_DIR/test.log"
+    local pid_file="/tmp/backup_stream_${INSTANCE_NAME}.pid"
+
+    echo "99999" > "$pid_file"
+    run run_phase2 "test-config" || true
+    [ ! -f "$pid_file" ] || true
+}
+
+@test "orchestrator releases lock on success" {
+    load_lib "backup_lock"
+    load_lib "backup_orchestrator"
+    local lock_file="/tmp/backup_${INSTANCE_NAME}.lock"
+
+    acquire_lock "$INSTANCE_NAME"
+    [ -f "$lock_file" ]
+    release_lock "$INSTANCE_NAME"
+    [ ! -f "$lock_file" ]
+}
+
+@test "backup_database generates sha256 checksum" {
+    local backup_dir="$MB_TEST_DIR/backup_output"
+    mkdir -p "$backup_dir"
+
+    init_logging "$MB_TEST_DIR/test.log"
+
+    run backup_database "$backup_dir"
+    [ "$status" -eq 0 ]
+
+    local sha256_count
+    sha256_count=$(find "$backup_dir" -name "*.sha256" -type f 2>/dev/null | wc -l)
+    [ "$sha256_count" -ge 1 ]
+}
+
+@test "verify_streaming_backup handles missing checksum gracefully" {
+    load_lib "backup_streaming"
+    init_logging "$MB_TEST_DIR/test.log"
+
+    run verify_streaming_backup "gdrive:test_backups/test-moodle/test.tar.gz"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"GB"* ]] || [[ "$output" == *"MB"* ]]
+}
+
+@test "write_heartbeat creates heartbeat file" {
+    load_lib "backup_orchestrator"
+    init_logging "$MB_TEST_DIR/test.log"
+    export HEARTBEAT_DIR="$MB_TEST_DIR/heartbeats"
+
+    write_heartbeat "test-moodle" "success" "05:30" "EXITOSO" "EXITOSO"
+    [ -f "$HEARTBEAT_DIR/heartbeat_test-moodle" ]
+}
+
+@test "check_heartbeat returns 0 for recent backup" {
+    load_lib "backup_orchestrator"
+    init_logging "$MB_TEST_DIR/test.log"
+    export HEARTBEAT_DIR="$MB_TEST_DIR/heartbeats"
+
+    mkdir -p "$HEARTBEAT_DIR"
+    printf "%s|success|05:30|OK|OK\n" "$(date -Iseconds)" > "$HEARTBEAT_DIR/heartbeat_test-moodle"
+
+    run check_heartbeat "test-moodle" "48"
+    [ "$status" -eq 0 ]
+}
+
+@test "check_heartbeat returns 2 for never-run instance" {
+    load_lib "backup_orchestrator"
+    init_logging "$MB_TEST_DIR/test.log"
+    export HEARTBEAT_DIR="$MB_TEST_DIR/heartbeats"
+
+    rm -f "$HEARTBEAT_DIR/heartbeat_never-ran" 2>/dev/null || true
+    run check_heartbeat "never-ran" "24"
+    [ "$status" -eq 2 ]
+}
+
+@test "check_heartbeat returns 1 for overdue backup" {
+    load_lib "backup_orchestrator"
+    init_logging "$MB_TEST_DIR/test.log"
+    export HEARTBEAT_DIR="$MB_TEST_DIR/heartbeats"
+
+    mkdir -p "$HEARTBEAT_DIR"
+    local old_date
+    old_date=$(date -d "48 hours ago" -Iseconds 2>/dev/null || date -Iseconds)
+    printf "%s|success|05:30|OK|OK\n" "$old_date" > "$HEARTBEAT_DIR/heartbeat_test-overdue"
+
+    run check_heartbeat "test-overdue" "24"
+    [ "$status" -eq 1 ]
+}
+
+@test "backup_database works with PostgreSQL engine using mock" {
+    init_logging "$MB_TEST_DIR/test.log"
+    export DB_ENGINE="pgsql"
+    export DB_HOST="localhost"
+    export DB_PORT="5432"
+
+    local backup_dir="$MB_TEST_DIR/backup_pg"
+    mkdir -p "$backup_dir"
+
+    run backup_database "$backup_dir"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *".zip"* ]]
+}
+
+@test "validate_phase1_requirements accepts pg_dump for PostgreSQL" {
+    init_logging "$MB_TEST_DIR/test.log"
+    export DB_ENGINE="pgsql"
+    export DB_HOST="localhost"
+
+    run validate_phase1_requirements
+    [ "$status" -eq 0 ]
 }

@@ -24,3 +24,27 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Build artifacts
+/dist/
+
+# AI & Agent Tooling (local only, no publico)
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.cursor/
+.cursorrules
+.agents/
+.opencode/
+.copilot/
+.docs/
+.gemini/
+.claude/
+.trae/
+.codex/
+.windsurf/
+.bolt/
+.lovable/
+.github/copilot-instructions.md
+opencode.json
+opencode.jsonc

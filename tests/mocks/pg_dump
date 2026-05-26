@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "MOCK_PGDUMP: $*" >> "${MB_TEST_DIR:-/tmp}/mock_calls.log"
+exit 0

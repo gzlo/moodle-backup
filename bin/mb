@@ -16,7 +16,7 @@ MB_INSTALL_DIR="${MB_INSTALL_DIR:-$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)}
 export MB_INSTALL_DIR
 
 # Cargar librerías
-for lib in utils logging config notifications backup_maintenance backup_streaming backup_orchestrator server_detect; do
+for lib in utils logging config notifications notifications_webhook backup_maintenance backup_streaming backup_orchestrator server_detect backup_lock backup_encryption backup_incremental i18n; do
     if [ -f "${MB_INSTALL_DIR}/lib/${lib}.sh" ]; then
         # shellcheck disable=SC1090
         source "${MB_INSTALL_DIR}/lib/${lib}.sh"
@@ -28,6 +28,9 @@ done
 
 # Re-inicializar colores con argumentos actuales
 setup_colors "$@"
+
+# Cargar locale para i18n
+load_locale
 
 # =============================================================================
 # FUNCIONES DE PRESENTACIÓN
@@ -43,53 +46,57 @@ show_banner() {
 /_/  /_/\____/\____/\__,_/_/\___/                                  /_/     
 BANNER
     echo -e "${NC}"
-    echo -e "  ${GREEN}MB v${MB_VERSION}${NC} — Sistema de Backup para Moodle"
+    echo -e "  ${GREEN}MB v${MB_VERSION}${NC} — $(_ mb_tagline)"
     echo -e "  ${BLUE}Cloud Storage${NC} · ${BLUE}Streaming${NC} · ${BLUE}Multi-config${NC} · ${BLUE}Notificaciones${NC}"
     echo ""
 }
 
 show_help() {
     show_banner
-    echo -e "${YELLOW}━━━ COMANDOS PRINCIPALES ━━━${NC}
-  ${BLUE}backup <config>${NC}         Ejecutar backup completo (Fase 1 + Fase 2)
-  ${BLUE}run <config>${NC}            Ejecutar backup en background
-  ${BLUE}list${NC}                    Listar configuraciones
-  ${BLUE}status${NC}                  Estado del sistema
-  ${BLUE}detect${NC}                  Detectar servidor, panel y Moodle
-  ${BLUE}logs <config>${NC}           Ver logs recientes
-  ${BLUE}test <config>${NC}           Probar configuración
-  ${BLUE}test-email <config>${NC}     Enviar email de prueba
-  ${BLUE}cron${NC}                    Monitor del cron
+    echo -e "${YELLOW}━━━ $(_ title_main) ━━━${NC}
+  ${BLUE}backup <config>${NC}         $(_ cmd_backup)
+  ${BLUE}run <config>${NC}            $(_ cmd_run)
+  ${BLUE}list${NC}                    $(_ cmd_list)
+  ${BLUE}status${NC}                  $(_ cmd_status)
+  ${BLUE}detect${NC}                  $(_ cmd_detect)
+  ${BLUE}logs <config>${NC}           $(_ cmd_logs)
+  ${BLUE}test <config>${NC}           $(_ cmd_test)
+  ${BLUE}test-email <config>${NC}     $(_ cmd_test_email)
+  ${BLUE}cron${NC}                    $(_ cmd_cron)
+  ${BLUE}health <config>${NC}         $(_ cmd_health)
 
-${YELLOW}━━━ GESTIÓN DE CONFIGURACIONES ━━━${NC}
-  ${BLUE}moodlesite list${NC}             Listar configuraciones
-  ${BLUE}moodlesite enable <config>${NC}  Habilitar configuración
-  ${BLUE}moodlesite disable <config>${NC} Deshabilitar configuración
-  ${BLUE}moodlesite create <config>${NC}  Crear nueva configuración
-  ${BLUE}moodlesite show <config>${NC}    Mostrar configuración
-  ${BLUE}moodlesite test <config>${NC}    Probar configuración
+${YELLOW}━━━ $(_ title_config) ━━━${NC}
+  ${BLUE}moodlesite list${NC}             $(_ cmd_ms_list)
+  ${BLUE}moodlesite enable <config>${NC}  $(_ cmd_ms_enable)
+  ${BLUE}moodlesite disable <config>${NC} $(_ cmd_ms_disable)
+  ${BLUE}moodlesite create <config>${NC}  $(_ cmd_ms_create)
+  ${BLUE}moodlesite show <config>${NC}    $(_ cmd_ms_show)
+  ${BLUE}moodlesite test <config>${NC}    $(_ cmd_ms_test)
 
-${YELLOW}━━━ OPCIONES ━━━${NC}
-  ${BLUE}--no-color${NC}              Deshabilitar colores
-  ${BLUE}--version, -v${NC}           Mostrar versión
-  ${BLUE}--help, -h${NC}              Mostrar esta ayuda
+${YELLOW}━━━ $(_ title_options) ━━━${NC}
+  ${BLUE}--no-color${NC}              $(_ opt_no_color)
+  ${BLUE}--dry-run${NC}              $(_ opt_dry_run)
+  ${BLUE}--version, -v${NC}           $(_ opt_version)
+  ${BLUE}--help, -h${NC}              $(_ opt_help)
 
-${YELLOW}━━━ EJEMPLOS ━━━${NC}
+${YELLOW}━━━ $(_ title_examples) ━━━${NC}
   ${GREEN}mb list${NC}
   ${GREEN}mb backup ivama${NC}
+  ${GREEN}mb backup --dry-run ivama${NC}
+  ${GREEN}mb health ivama${NC}
   ${GREEN}mb moodlesite enable ivama${NC}
   ${GREEN}mb logs ivama${NC}"
 }
 
 show_status() {
-    echo -e "${YELLOW}=== Estado del Sistema Moodle Backup v${MB_VERSION} ===${NC}"
+    echo -e "${YELLOW}=== $(_ status_title) v${MB_VERSION} ===${NC}"
     echo ""
     
-    echo -e "${BLUE}Instalación:${NC}"
+    echo -e "${BLUE}$(_ status_install):${NC}"
     echo -e "  📁 $MB_INSTALL_DIR"
     echo ""
     
-    echo -e "${BLUE}Scripts:${NC}"
+    echo -e "${BLUE}$(_ status_scripts):${NC}"
     for lib in config logging notifications utils backup_maintenance backup_streaming backup_orchestrator; do
         if [ -f "${MB_INSTALL_DIR}/lib/${lib}.sh" ]; then
             echo -e "  ✅ lib/${lib}.sh"
@@ -99,11 +106,11 @@ show_status() {
     done
     echo ""
     
-    echo -e "${BLUE}Configuraciones:${NC}"
+    echo -e "${BLUE}$(_ status_configs):${NC}"
     list_available_configs
     echo ""
     
-    echo -e "${BLUE}Dependencias:${NC}"
+    echo -e "${BLUE}$(_ status_deps):${NC}"
     for cmd in mysql mysqldump php tar gzip zip rclone; do
         if command -v "$cmd" >/dev/null 2>&1; then
             echo -e "  ✅ $cmd"
@@ -114,7 +121,7 @@ show_status() {
     
     if command -v rclone >/dev/null 2>&1; then
         echo ""
-        echo -e "${BLUE}rclone remotes:${NC}"
+        echo -e "${BLUE}$(_ status_rclone):${NC}"
         rclone listremotes 2>/dev/null | sed 's/^/  /' || echo "  (ninguno)"
     fi
 }
@@ -122,12 +129,12 @@ show_status() {
 show_logs() {
     local config="$1"
     if [ -z "$config" ]; then
-        show_message "error" "Uso: mb logs <config>"
+        show_message "error" "$(_ err_usage_logs)"
         return 1
     fi
     
     if ! load_moodle_config "$config" 2>/dev/null; then
-        show_message "error" "Configuración no encontrada: $config"
+        show_message "error" "$(_ err_config_not_found): $config"
         return 1
     fi
     
@@ -139,8 +146,8 @@ show_logs() {
         show_message "info" "Log: $log_file"
         tail -f "$log_file"
     else
-        show_message "warning" "Log de hoy no encontrado"
-        show_message "info" "Buscando logs recientes..."
+        show_message "warning" "$(_ info_log_not_found)"
+        show_message "info" "$(_ info_searching_logs)"
         find "$BACKUP_BASE/$INSTANCE_NAME/" -name "*.log" -type f -mtime -7 2>/dev/null | sort -r | head -5
     fi
 }
@@ -148,19 +155,25 @@ show_logs() {
 run_background() {
     local config="$1"
     if [ -z "$config" ]; then
-        show_message "error" "Uso: mb run <config>"
+        show_message "error" "$(_ err_usage_run)"
         return 1
     fi
     
     if ! load_moodle_config "$config" 2>/dev/null; then
-        show_message "error" "Configuración no encontrada: $config"
+        show_message "error" "$(_ err_config_not_found): $config"
         return 1
     fi
-    
+
+    if is_backup_running "$INSTANCE_NAME"; then
+        # shellcheck disable=SC2059
+        show_message "error" "$(printf "$(_ err_backup_running)" "$INSTANCE_NAME")"
+        return 1
+    fi
+
     local nohup_log
     nohup_log="/tmp/backup_${INSTANCE_NAME}_$(date +%d%m%Y_%H%M).log"
     
-    show_message "info" "Iniciando backup en background..."
+    show_message "info" "$(_ info_running_bg)"
     echo "�� Configuración: $config"
     echo "🏢 Instancia: $INSTANCE_NAME"
     echo "📄 Log: $nohup_log"
@@ -205,12 +218,20 @@ handle_moodlesite() {
 # MAIN
 # =============================================================================
 
-# Filtrar --no-color de args
+# Filtrar --no-color y --dry-run de args
+DRY_RUN="false"
 ARGS=()
 for arg in "$@"; do
-    [ "$arg" = "--no-color" ] || ARGS+=("$arg")
+    if [ "$arg" = "--no-color" ]; then
+        continue
+    elif [ "$arg" = "--dry-run" ]; then
+        DRY_RUN="true"
+        continue
+    fi
+    ARGS+=("$arg")
 done
 set -- "${ARGS[@]}"
+export DRY_RUN
 
 [ $# -eq 0 ] && { show_help; exit 0; }
 
@@ -228,9 +249,14 @@ case "$COMMAND" in
         list_available_configs
         ;;
     backup)
-        [ -z "${1:-}" ] && { show_message "error" "Uso: mb backup <config>"; exit 1; }
-        show_message "info" "Ejecutando backup completo: $1"
-        load_moodle_config "$1" 2>/dev/null || { show_message "error" "Config no encontrada: $1"; exit 1; }
+        [ -z "${1:-}" ] && { show_message "error" "$(_ err_usage_backup)"; exit 1; }
+        load_moodle_config "$1" 2>/dev/null || { show_message "error" "$(_ err_config_not_found): $1"; exit 1; }
+        if is_backup_running "$INSTANCE_NAME"; then
+            # shellcheck disable=SC2059
+            show_message "error" "$(printf "$(_ err_backup_running)" "$INSTANCE_NAME")"
+            exit 1
+        fi
+        show_message "info" "$(_ info_running_backup): $1"
         run_full_backup "$1"
         ;;
     run)
@@ -249,11 +275,11 @@ case "$COMMAND" in
         show_server_info
         ;;
     test)
-        [ -z "${1:-}" ] && { show_message "error" "Uso: mb test <config>"; exit 1; }
+        [ -z "${1:-}" ] && { show_message "error" "$(_ err_usage_test)"; exit 1; }
         test_config "$1"
         ;;
     test-email)
-        [ -z "${1:-}" ] && { show_message "error" "Uso: mb test-email <config>"; exit 1; }
+        [ -z "${1:-}" ] && { show_message "error" "$(_ err_usage_test_email)"; exit 1; }
         load_moodle_config "$1"
         send_test_email "$1"
         ;;
@@ -262,12 +288,24 @@ case "$COMMAND" in
         if [ -f "$local_monitor" ]; then
             bash "$local_monitor"
         else
-            show_message "error" "cron_monitor.sh no encontrado"
+            show_message "error" "$(_ err_cron_not_found)"
             exit 1
         fi
         ;;
+    health)
+        [ -z "${1:-}" ] && { show_message "error" "$(_ err_usage_health)"; exit 1; }
+        load_moodle_config "$1" 2>/dev/null || { show_message "error" "$(_ err_config_not_found): $1"; exit 1; }
+        check_heartbeat "$INSTANCE_NAME" "${HEARTBEAT_MAX_HOURS:-24}"
+        hb_exit=$?
+        case $hb_exit in
+            0) show_message "success" "Backup OK - dentro del umbral" ;;
+            1) show_message "error" "Backup atrasado - ultimo exito hace mas de ${HEARTBEAT_MAX_HOURS:-24}h" ;;
+            2) show_message "warning" "Nunca se ha ejecutado un backup para '$INSTANCE_NAME'" ;;
+        esac
+        exit $hb_exit
+        ;;
     *)
-        show_message "error" "Comando desconocido: $COMMAND"
+        show_message "error" "$(_ err_unknown_cmd): $COMMAND"
         echo ""
         show_help
         exit 1

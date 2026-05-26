@@ -68,6 +68,9 @@ validate_config_variables() {
     # Defaults
     [ -z "$RETENTION_COPIES" ] && export RETENTION_COPIES="2"
     [ -z "$DB_HOST" ] && export DB_HOST="localhost"
+    [ -z "$DB_ENGINE" ] && export DB_ENGINE="mysql"
+    [ -z "$DB_PORT" ] && [ "$DB_ENGINE" = "pgsql" ] && export DB_PORT="5432"
+    [ -z "$DB_PORT" ] && export DB_PORT="3306"
     [ -z "$PHP_CLI" ] && export PHP_CLI="/usr/bin/php"
     
     return $errors
@@ -292,19 +295,22 @@ create_config() {
     
     # Step 2: Base de datos
     echo "🗄️  Paso 2/5: Base de datos"
-    local db_name="" db_user="" db_pass="" db_host=""
-    
+    local db_name="" db_user="" db_pass="" db_host="" db_engine=""
+
     local detected_dbname
     detected_dbname=$(_detect_db_from_config "$src_app" "name")
     local detected_dbuser
     detected_dbuser=$(_detect_db_from_config "$src_app" "user")
     local detected_dbhost
     detected_dbhost=$(_detect_db_from_config "$src_app" "host")
-    
+    local detected_dbtype
+    detected_dbtype=$(_detect_db_from_config "$src_app" "type")
+
     _ask "Nombre de la base de datos" "${detected_dbname:-moodle}" "db_name"
     _ask "Usuario de BD" "${detected_dbuser:-moodle_user}" "db_user"
     _ask "Contraseña de BD" "" "db_pass"
     _ask "Host de BD" "${detected_dbhost:-localhost}" "db_host"
+    _ask "Motor de BD (mysql/pgsql)" "${detected_dbtype:-mysql}" "db_engine"
     
     echo ""
     
@@ -360,6 +366,18 @@ create_config() {
         _ask "  Usuario SMTP" "" "smtp_user"
         _ask "  Contraseña SMTP" "" "smtp_pass"
     fi
+
+    # Step 5.5: Webhooks (opcional)
+    echo ""
+    echo "  🌐 Webhooks (opcional, Enter para omitir):"
+    local discord_url="" slack_url="" telegram_token="" telegram_chat=""
+    _ask "  Discord Webhook URL" "" "discord_url"
+    _ask "  Slack Webhook URL" "" "slack_url"
+    if [ -n "$discord_url" ] || [ -n "$slack_url" ]; then
+        _ask "  Notificar backups exitosos? (true/false)" "false" "webhook_success"
+    else
+        local webhook_success="false"
+    fi
     
     echo ""
     
@@ -385,6 +403,7 @@ DB_NAME="${db_name}"
 DB_USER="${db_user}"
 DB_PASSWORD="${db_pass}"
 DB_HOST="${db_host}"
+DB_ENGINE="${db_engine:-mysql}"
 
 # PHP
 PHP_CLI="/usr/bin/php"
@@ -404,6 +423,13 @@ SMTP_PORT="${smtp_port:-587}"
 SMTP_USER="${smtp_user}"
 SMTP_PASSWORD="${smtp_pass}"
 SMTP_TLS="yes"
+
+# Webhooks (Discord/Slack/Telegram)
+DISCORD_WEBHOOK_URL="${discord_url}"
+SLACK_WEBHOOK_URL="${slack_url}"
+TELEGRAM_BOT_TOKEN="${telegram_token}"
+TELEGRAM_CHAT_ID="${telegram_chat}"
+WEBHOOK_NOTIFY_SUCCESS="${webhook_success:-false}"
 
 # Cron (1=diario, 2=cada 2 días, 3=cada 5 días, 4=semanal, 5=quincenal, 6=mensual, 7=custom)
 CRON_SCHEDULE="7"
@@ -497,18 +523,36 @@ test_config() {
         errors=$((errors + 1))
     fi
     
-    # Test MySQL
-    if command -v mysql >/dev/null 2>&1; then
-        # shellcheck disable=SC2153
-        if mysql -h "${DB_HOST:-localhost}" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE $DB_NAME;" 2>/dev/null; then
-            echo "✅ Conexión a base de datos OK"
-        else
-            echo "❌ No se puede conectar a la base de datos"
-            errors=$((errors + 1))
-        fi
-    else
-        echo "⚠️  mysql client no instalado"
-    fi
+    # Test Base de datos
+    local db_engine="${DB_ENGINE:-mysql}"
+    case "$db_engine" in
+        pgsql|postgresql|postgres)
+            if command -v psql >/dev/null 2>&1; then
+                # shellcheck disable=SC2153
+                if PGPASSWORD="$DB_PASSWORD" psql -h "${DB_HOST:-localhost}" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" >/dev/null 2>&1; then
+                    echo "✅ Conexion a PostgreSQL OK ($DB_NAME@${DB_HOST:-localhost})"
+                else
+                    echo "❌ No se puede conectar a PostgreSQL: $DB_NAME"
+                    errors=$((errors + 1))
+                fi
+            else
+                echo "⚠️  psql client no instalado"
+            fi
+            ;;
+        *)
+            if command -v mysql >/dev/null 2>&1; then
+                # shellcheck disable=SC2153
+                if mysql -h "${DB_HOST:-localhost}" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE $DB_NAME;" 2>/dev/null; then
+                    echo "✅ Conexión a base de datos OK"
+                else
+                    echo "❌ No se puede conectar a la base de datos"
+                    errors=$((errors + 1))
+                fi
+            else
+                echo "⚠️  mysql client no instalado"
+            fi
+            ;;
+    esac
     
     # Test rclone
     if command -v rclone >/dev/null 2>&1; then
@@ -524,6 +568,40 @@ test_config() {
     
     # Test email transport
     show_email_transport_info 2>/dev/null || true
+
+    # Test GPG encryption
+    if [ "${ENCRYPT_BACKUPS:-false}" = "true" ]; then
+        echo ""
+        if command -v gpg >/dev/null 2>&1; then
+            echo "✅ GPG instalado"
+            case "${ENCRYPTION_METHOD:-passphrase}" in
+                passphrase)
+                    if [ -n "${GPG_PASSPHRASE:-}" ]; then
+                        echo "✅ GPG configurado (simetrico con passphrase)"
+                    else
+                        echo "❌ GPG_PASSPHRASE no configurada"
+                        errors=$((errors + 1))
+                    fi
+                    ;;
+                recipient)
+                    if [ -n "${GPG_RECIPIENT:-}" ]; then
+                        if gpg --list-keys "$GPG_RECIPIENT" >/dev/null 2>&1; then
+                            echo "✅ GPG configurado (asimetrico para $GPG_RECIPIENT)"
+                        else
+                            echo "❌ Clave publica no encontrada para: $GPG_RECIPIENT"
+                            errors=$((errors + 1))
+                        fi
+                    else
+                        echo "❌ GPG_RECIPIENT no configurado"
+                        errors=$((errors + 1))
+                    fi
+                    ;;
+            esac
+        else
+            echo "❌ GPG no instalado (requerido para ENCRYPT_BACKUPS=true)"
+            errors=$((errors + 1))
+        fi
+    fi
     
     [ $errors -eq 0 ] && echo "✅ Configuración válida" || echo "❌ $errors errores encontrados"
     echo ""
