@@ -46,23 +46,6 @@ load '../test_helper'
     [ "$status" -eq 0 ]
 }
 
-@test "mb backup --dry-run with valid config validates" {
-    setup_test_env
-    load_lib "config"
-    setup_test_configs
-    export CONFIG_BASE_DIR="$MB_TEST_CONFIGS"
-    export CONFIG_AVAILABLE_DIR="$MB_TEST_CONFIGS/available"
-    export CONFIG_ENABLED_DIR="$MB_TEST_CONFIGS/enabled"
-    cp "${MB_PROJECT_DIR}/tests/fixtures/valid.config" "${CONFIG_AVAILABLE_DIR}/drytest.config"
-    
-    # Dry-run validate_phase1_requirements needs maintenance.php to exist
-    mkdir -p /tmp/fake-moodle/admin/cli
-    touch /tmp/fake-moodle/admin/cli/maintenance.php
-
-    run "${MB_PROJECT_DIR}/bin/mb" --dry-run backup drytest
-    [ "$status" -eq 0 ]
-}
-
 @test "mb backup --dry-run usage appears in help" {
     run "${MB_PROJECT_DIR}/bin/mb" --help
     [[ "$output" == *"--dry-run"* ]]

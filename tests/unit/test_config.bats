@@ -24,13 +24,7 @@ teardown() {
 }
 
 @test "load_moodle_config loads valid config" {
-    # Create fake moodle structure for validation
-    mkdir -p /tmp/fake-moodle/admin/cli
-    touch /tmp/fake-moodle/admin/cli/maintenance.php
-    
     run load_moodle_config "test-moodle"
-    
-    rm -rf /tmp/fake-moodle
     # May fail on DB check, but should at least load the file
     [[ "$output" == *"test-moodle"* ]] || true
 }
