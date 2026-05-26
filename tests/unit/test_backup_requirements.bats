@@ -43,7 +43,7 @@ teardown() {
     for cmd in mysql mysqldump php rclone; do
         cp "$MB_PROJECT_DIR/tests/mocks/$cmd" "$stripped/"
     done
-    export PATH="$stripped"
+    PATH="$stripped"
     run validate_phase1_requirements
     [ "$status" -eq 1 ]
 }
@@ -56,7 +56,7 @@ teardown() {
 exit 1
 HEREDOC
     chmod +x "$faildir/mysql"
-    export PATH="$faildir:$MB_PROJECT_DIR/tests/mocks:$PATH"
+    PATH="$faildir:$MB_PROJECT_DIR/tests/mocks:$PATH"
     run validate_phase1_requirements
     [ "$status" -eq 1 ]
 }
@@ -78,7 +78,7 @@ HEREDOC
     for cmd in mysql mysqldump php rclone zip; do
         cp "$MB_PROJECT_DIR/tests/mocks/$cmd" "$no_pg/"
     done
-    export PATH="$no_pg"
+    PATH="$no_pg"
     export DB_ENGINE="pgsql"
     run validate_phase1_requirements
     [ "$status" -eq 1 ]
