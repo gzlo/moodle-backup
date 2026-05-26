@@ -55,17 +55,24 @@ perform_streaming_backup() {
 
     if [ "$encrypt" = "true" ] && [ -n "$gpg_pass" ]; then
         log_message "INFO" "Streaming con cifrado GPG"
+        local gpg_passfile
+        gpg_passfile=$(mktemp)
+        chmod 600 "$gpg_passfile"
+        echo -n "$gpg_pass" > "$gpg_passfile"
         if [ -n "$checksum_file" ]; then
-            if eval "$tar_cmd" | gpg --batch --passphrase "$gpg_pass" --symmetric --cipher-algo AES256 2>/dev/null | eval "$tee_cmd" | eval "$rclone_cmd"; then
+            if eval "$tar_cmd" | gpg --batch --passphrase-file "$gpg_passfile" --symmetric --cipher-algo AES256 2>/dev/null | eval "$tee_cmd" | eval "$rclone_cmd"; then
+                rm -f "$gpg_passfile"
                 log_message "SUCCESS" "Streaming cifrado completado (checksum generado)"
                 return 0
             fi
         else
-            if eval "$tar_cmd" | gpg --batch --passphrase "$gpg_pass" --symmetric --cipher-algo AES256 2>/dev/null | eval "$rclone_cmd"; then
+            if eval "$tar_cmd" | gpg --batch --passphrase-file "$gpg_passfile" --symmetric --cipher-algo AES256 2>/dev/null | eval "$rclone_cmd"; then
+                rm -f "$gpg_passfile"
                 log_message "SUCCESS" "Streaming cifrado completado"
                 return 0
             fi
         fi
+        rm -f "$gpg_passfile"
     else
         log_message "INFO" "Comando: $tar_cmd | $rclone_cmd"
         if [ -n "$checksum_file" ]; then

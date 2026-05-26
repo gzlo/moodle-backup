@@ -34,13 +34,18 @@ Content-Type: text/plain; charset=UTF-8
 
 ${body}
 MAILEOF
-    
+
+    local netrc_tmp
+    netrc_tmp=$(mktemp)
+    chmod 600 "$netrc_tmp"
+    printf "machine %s login %s password %s\n" "$host" "$user" "$pass" > "$netrc_tmp"
+
     local curl_args=(
         --url "$url"
         --mail-from "$from"
         --mail-rcpt "$to"
         --upload-file "$mail_txt"
-        --user "${user}:${pass}"
+        --netrc-file "$netrc_tmp"
         --silent --show-error
         --max-time 30
     )
@@ -50,7 +55,7 @@ MAILEOF
     
     local result=0
     curl "${curl_args[@]}" 2>/dev/null || result=$?
-    rm -f "$mail_txt"
+    rm -f "$mail_txt" "$netrc_tmp"
     return $result
 }
 

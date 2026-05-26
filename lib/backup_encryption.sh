@@ -23,7 +23,7 @@ encrypt_file() {
                 log_message "ERROR" "GPG_PASSPHRASE no configurada"
                 return 1
             fi
-            if gpg --batch --passphrase "$GPG_PASSPHRASE" --symmetric --cipher-algo AES256 \
+            if echo -n "$GPG_PASSPHRASE" | gpg --batch --passphrase-fd 0 --symmetric --cipher-algo AES256 \
                 --output "$output" "$input" 2>/dev/null; then
                 log_message "SUCCESS" "Archivo cifrado: $(basename "$output")"
                 rm -f "$input"
@@ -68,7 +68,7 @@ decrypt_file() {
                 log_message "ERROR" "GPG_PASSPHRASE no configurada"
                 return 1
             fi
-            gpg --batch --passphrase "$GPG_PASSPHRASE" --decrypt \
+            echo -n "$GPG_PASSPHRASE" | gpg --batch --passphrase-fd 0 --decrypt \
                 --output "$output" "$input" 2>/dev/null
             ;;
         recipient)

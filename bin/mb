@@ -6,7 +6,7 @@
 # streaming a cloud storage, y notificaciones por email.
 #
 # Instalación: /usr/local/bin/mb → /opt/moodle-backup/bin/mb
-# Versión: 4.0.0
+# Versión: 5.0.1
 # =============================================================================
 
 set -euo pipefail
@@ -133,7 +133,7 @@ show_logs() {
         return 1
     fi
     
-    if ! load_moodle_config "$config" 2>/dev/null; then
+    if ! load_moodle_config "$config"; then
         show_message "error" "$(_ err_config_not_found): $config"
         return 1
     fi
@@ -159,7 +159,7 @@ run_background() {
         return 1
     fi
     
-    if ! load_moodle_config "$config" 2>/dev/null; then
+    if ! load_moodle_config "$config"; then
         show_message "error" "$(_ err_config_not_found): $config"
         return 1
     fi
@@ -178,7 +178,9 @@ run_background() {
     echo "🏢 Instancia: $INSTANCE_NAME"
     echo "📄 Log: $nohup_log"
     
-    nohup "$0" backup "$config" > "$nohup_log" 2>&1 &
+    local mb_path
+    mb_path=$(command -v mb 2>/dev/null || readlink -f "$0" 2>/dev/null || echo "$0")
+    nohup "$mb_path" backup "$config" > "$nohup_log" 2>&1 &
     local pid=$!
     
     echo "✅ Proceso iniciado (PID: $pid)"
@@ -250,7 +252,7 @@ case "$COMMAND" in
         ;;
     backup)
         [ -z "${1:-}" ] && { show_message "error" "$(_ err_usage_backup)"; exit 1; }
-        load_moodle_config "$1" 2>/dev/null || { show_message "error" "$(_ err_config_not_found): $1"; exit 1; }
+        load_moodle_config "$1" || { show_message "error" "$(_ err_config_not_found): $1"; exit 1; }
         if is_backup_running "$INSTANCE_NAME"; then
             # shellcheck disable=SC2059
             show_message "error" "$(printf "$(_ err_backup_running)" "$INSTANCE_NAME")"
@@ -294,7 +296,7 @@ case "$COMMAND" in
         ;;
     health)
         [ -z "${1:-}" ] && { show_message "error" "$(_ err_usage_health)"; exit 1; }
-        load_moodle_config "$1" 2>/dev/null || { show_message "error" "$(_ err_config_not_found): $1"; exit 1; }
+        load_moodle_config "$1" || { show_message "error" "$(_ err_config_not_found): $1"; exit 1; }
         check_heartbeat "$INSTANCE_NAME" "${HEARTBEAT_MAX_HOURS:-24}"
         hb_exit=$?
         case $hb_exit in

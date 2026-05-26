@@ -64,7 +64,7 @@ backup_database() {
             fi
             ;;
         *)
-            if mysqldump -h "$host" -u "$DB_USER" -p"$DB_PASSWORD" ${port:+--port="$port"} "$DB_NAME" > "$temp_sql" 2>/dev/null \
+            if MYSQL_PWD="$DB_PASSWORD" mysqldump -h "$host" -u "$DB_USER" ${port:+--port="$port"} "$DB_NAME" > "$temp_sql" 2>/dev/null \
                && [ -f "$temp_sql" ] && [ -s "$temp_sql" ]; then
                 dump_success=true
             fi
@@ -239,7 +239,7 @@ validate_phase1_requirements() {
             ;;
         *)
             command -v mysqldump >/dev/null 2>&1 || { log_message "ERROR" "mysqldump requerido"; return 1; }
-            mysql -h "$host" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE $DB_NAME;" 2>/dev/null || {
+            MYSQL_PWD="$DB_PASSWORD" mysql -h "$host" -u "$DB_USER" -e "USE $DB_NAME;" 2>/dev/null || {
                 log_message "ERROR" "No se puede conectar a BD: $DB_NAME@$host"
                 return 1
             }

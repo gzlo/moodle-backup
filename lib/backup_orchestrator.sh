@@ -48,7 +48,7 @@ HEARTBEAT_DIR="${HEARTBEAT_DIR:-/var/log/moodle-backup/heartbeats}"
 
 write_heartbeat() {
     local instance="$1" status="$2" elapsed="$3" p1="$4" p2="$5"
-    mkdir -p "$HEARTBEAT_DIR"
+    mkdir -p "$HEARTBEAT_DIR" && chmod 700 "$HEARTBEAT_DIR"
     local hb_file="${HEARTBEAT_DIR}/heartbeat_${instance}"
     printf "%s|%s|%s|%s|%s\n" "$(date -Iseconds)" "$status" "$elapsed" "$p1" "$p2" > "$hb_file"
 }

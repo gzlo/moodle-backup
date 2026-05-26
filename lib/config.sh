@@ -37,17 +37,37 @@ load_moodle_config() {
         echo "ERROR: Configuración '${config_name}' no encontrada" >&2
         return 1
     fi
-    
-    # shellcheck disable=SC1090
-    if source "$config_file"; then
-        validate_config_variables
-        local rc=$?
-        _mb_cloud_compat
-        return $rc
-    else
-        echo "ERROR: No se pudo cargar: $config_file" >&2
-        return 1
+
+    # Verificar permisos seguros
+    local perms
+    perms=$(stat -c "%a" "$config_file" 2>/dev/null || echo "")
+    if [ -n "$perms" ] && [ "$perms" != "600" ] && [ "$perms" != "400" ] && [ "$perms" != "500" ]; then
+        echo "WARNING: Permisos inseguros ($perms) en $config_file. Ejecuta: chmod 600 $config_file" >&2
     fi
+
+    # Extraer solo lineas de asignacion (VAR=value) para evitar ejecucion de codigo arbitrario
+    local safe_config
+    safe_config=$(mktemp)
+    grep -E '^[[:space:]]*(export[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*=' "$config_file" > "$safe_config" 2>/dev/null || true
+
+    if [ -s "$safe_config" ]; then
+        # shellcheck disable=SC1090
+        if source "$safe_config"; then
+            validate_config_variables
+            local rc=$?
+            _mb_cloud_compat
+            rm -f "$safe_config"
+            return $rc
+        else
+            rm -f "$safe_config"
+            echo "ERROR: No se pudo cargar: $config_file" >&2
+            return 1
+        fi
+    fi
+
+    rm -f "$safe_config"
+    echo "ERROR: Configuración vacía o sin variables: $config_file" >&2
+    return 1
 }
 
 # Validar variables obligatorias de configuración
@@ -444,6 +464,8 @@ MOODLEDATA_EXCLUDES="cache/* sessions/* temp/* trashdir/*"
 SYSTEM_USER="${system_user}"
 CONFIGEOF
 
+    chmod 600 "$target"
+
     echo "━━━ Resumen ━━━"
     echo "  📁 Moodle:    $src_app"
     echo "  🗄️  BD:        $db_name@$db_host"
@@ -508,7 +530,7 @@ test_config() {
     local name="$1"
     echo "=== PROBANDO CONFIGURACIÓN: $name ==="
     
-    if ! load_moodle_config "$name" 2>/dev/null; then
+    if ! load_moodle_config "$name"; then
         echo "❌ Error cargando configuración"
         return 1
     fi
@@ -542,7 +564,7 @@ test_config() {
         *)
             if command -v mysql >/dev/null 2>&1; then
                 # shellcheck disable=SC2153
-                if mysql -h "${DB_HOST:-localhost}" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE $DB_NAME;" 2>/dev/null; then
+                if MYSQL_PWD="$DB_PASSWORD" mysql -h "${DB_HOST:-localhost}" -u "$DB_USER" -e "USE $DB_NAME;" 2>/dev/null; then
                     echo "✅ Conexión a base de datos OK"
                 else
                     echo "❌ No se puede conectar a la base de datos"

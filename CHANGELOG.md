@@ -8,6 +8,21 @@ Este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
 _Proximas mejoras pendientes._
 
+## [5.0.1] - 2026-05-26
+
+### Security
+- **Credenciales MySQL**: `-p"$DB_PASSWORD"` reemplazado por `MYSQL_PWD` env var. Las credenciales ya no son visibles en `/proc/PID/cmdline`.
+- **Passphrase GPG**: `--passphrase "$GPG_PASSPHRASE"` reemplazado por `--passphrase-fd 0` con pipe. Eliminada la exposicion en `/proc`.
+- **Contraseña SMTP**: `--user user:pass` en curl reemplazado por `--netrc-file` con archivo temporal de permisos 600.
+- **Permisos de configuracion**: `chmod 600` forzado al crear configs con el wizard. Warning en `load_moodle_config` si los permisos son inseguros.
+- **Sanitizacion de configs**: `source` restringido a lineas de asignacion `KEY="value"` mediante `grep`, previniendo ejecucion de codigo arbitrario desde archivos de configuracion.
+
+### Fixed
+- **Heartbeats**: directorio con `chmod 700` para evitar lectura por otros usuarios.
+- **nohup $0**: ruta resuelta con `readlink -f` para evitar fallos con paths relativos en cron.
+- **Errores visibles**: eliminado `2>/dev/null` en 5 sitios de `load_moodle_config` para facilitar debugging.
+- **Comentario de version** en `bin/mb` corregido (decia `4.0.0`).
+
 ## [5.0.0] - 2026-05-26
 
 ### Added
