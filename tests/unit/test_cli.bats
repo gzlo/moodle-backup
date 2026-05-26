@@ -47,6 +47,7 @@ load '../test_helper'
 }
 
 @test "mb backup --dry-run with valid config validates" {
+    setup_test_env
     load_lib "config"
     setup_test_configs
     export CONFIG_BASE_DIR="$MB_TEST_CONFIGS"
