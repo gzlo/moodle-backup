@@ -24,7 +24,7 @@ _Proximas mejoras pendientes._
 - **Soporte PostgreSQL**: `pg_dump` en `backup_database()`, validacion con `psql`, deteccion en wizard via `$CFG->dbtype`. Configurable via `DB_ENGINE`.
 - **i18n es/en** (`lib/i18n.sh`): infraestructura de traduccion con 67 claves. CLI, help, status y subjects de email traducidos. Auto-deteccion desde `LANG` del sistema.
 - **`mb health`**: nuevo subcomando (exit code 0/1/2 para monitoreo).
-- **30+ nuevos tests BATS**: `test_backup_lock.bats` (9), `test_backup_encryption.bats` (6), tests de integridad (2), heartbeat (4), webhooks (6), retry (3), dry-run (3), PostgreSQL (2).
+- **37+ nuevos tests BATS**: `test_backup_lock.bats` (9), `test_backup_encryption.bats` (6), `test_backup_requirements.bats` (7), tests de integridad (2), heartbeat (4), webhooks (6), retry (3), dry-run (3), PostgreSQL (2).
 
 ### Changed
 - Version bump: `4.2.0` → `5.0.0`
@@ -40,13 +40,22 @@ _Proximas mejoras pendientes._
 - `bin/mb`: filtro `--dry-run`, `load_locale()`, subcomando `health`, strings i18n.
 - `moodle.config.example`: +25 nuevas variables documentadas (cifrado, webhooks, lock, retry, rate limit, incremental, i18n, heartbeat, PostgreSQL).
 - Librerias: 8 → 14 (+6 nuevas: backup_lock, backup_encryption, notifications_webhook, backup_incremental, i18n, server_detect).
-- Mocks: +2 (`gpg`, `pg_dump`). `rclone` actualizado con `rcat`, `cat`, `delete`, `purge`.
+- Mocks: +3 (`gpg`, `pg_dump`, `zip`). `rclone` actualizado con `rcat`, `cat`, `delete`, `purge`. `mysqldump` actualizado con output SQL.
 - ShellCheck: 0 errores, 0 warnings. SC2329 y SC2059 justificados (trap + printf i18n).
 
 ### Fixed
 - `BOLD=''` en `lib/utils.sh:23` documentado como bug conocido.
 - `phase2_success=true` seteado correctamente en rama de exito.
 - `hb_exit` sin `local` en `bin/mb` (SC2168).
+- SC2317/SC2015 ShellCheck en trap handlers, checksums y webhooks.
+- `validate_encryption()` sin manejo de `ENCRYPTION_METHOD` desconocido.
+- `_notify_webhooks` ahora usa `declare -F` + `if/then` para ser opcional sin romper tests.
+- Tests con falsos positivos eliminados: `|| true` en `load_moodle_config`, `validate_phase1_requirements`, `run_phase2 cleanup`.
+- Test hibrido `backup --dry-run` reemplazado por 7 tests unitarios aislados de `validate_phase1_requirements`.
+- Tests CLI fortalecidos con validacion de output (no solo exit code).
+- Mocks corregidos: `gpg` crea `--output`, `zip` crea archivo, `mysqldump`/`pg_dump` generan output, `rclone ls` devuelve formato valido.
+- Nuevo test de integracion `check_streaming_prerequisites` (exito y fallo).
+- Mock `psql` agregado para validacion PostgreSQL.
 
 ## [4.2.0] - 2026-03-30
 
