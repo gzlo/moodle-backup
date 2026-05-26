@@ -100,6 +100,7 @@ teardown() {
 }
 
 @test "orchestrator releases lock on success" {
+    load_lib "backup_lock"
     load_lib "backup_orchestrator"
     local lock_file="/tmp/backup_${INSTANCE_NAME}.lock"
 
