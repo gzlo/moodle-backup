@@ -1,6 +1,7 @@
 #!/bin/bash
-# Mock for mysqldump - records calls and returns success
 echo "MOCK_MYSQLDUMP: $*" >> "${MB_TEST_DIR:-/tmp}/mock_calls.log"
-echo "-- Mock database dump"
-echo "CREATE TABLE test (id int);"
+case "$1" in
+    --version|-V) echo "mock-mysqldump 1.0" ;;
+    *) echo "-- Mock MySQL dump"; echo "CREATE TABLE test (id INT);" ;;
+esac
 exit 0
