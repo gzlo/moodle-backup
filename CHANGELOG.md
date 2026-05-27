@@ -8,6 +8,11 @@ Este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
 _Proximas mejoras pendientes._
 
+## [5.0.3] - 2026-05-27
+
+### Fixed
+- **MariaDB 10.11 test_config** (`lib/config.sh`): reemplazado `MYSQL_PWD` por `--defaults-extra-file` con archivo `.cnf` temporal. Resuelve autenticacion fallida en `mb test` con passwords que contienen caracteres especiales como `{` y `}` en MariaDB 10.11 (INC-009).
+
 ## [5.0.2] - 2026-05-27
 
 ### Fixed
