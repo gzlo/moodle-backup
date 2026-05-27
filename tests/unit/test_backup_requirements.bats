@@ -69,6 +69,27 @@ HEREDOC
     [ "$status" -eq 0 ]
 }
 
+@test "validate_phase1_requirements passes with --defaults-extra-file" {
+    run validate_phase1_requirements
+    [ "$status" -eq 0 ]
+    # Verify that mysql mock was called with --defaults-extra-file
+    grep -q "\-\-defaults-extra-file=" "$MB_TEST_DIR/mock_calls.log"
+}
+
+@test "_create_mysql_cnf generates file without quotes" {
+    local cnf
+    cnf=$(_create_mysql_cnf)
+    [ -f "$cnf" ]
+    # Verify no double quotes around values (INC-003)
+    grep -q '^user=test_user$' "$cnf"
+    grep -q '^password=test_pass$' "$cnf"
+    # Verify permissions are 600
+    local perms
+    perms=$(stat -c "%a" "$cnf")
+    [ "$perms" = "600" ]
+    rm -f "$cnf"
+}
+
 @test "validate_phase1_requirements fails with PostgreSQL and no pg_dump" {
     local no_pg="$MB_TEST_DIR/no-pg"
     mkdir -p "$no_pg"
