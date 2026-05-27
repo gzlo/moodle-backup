@@ -6,7 +6,8 @@
 # USO: crontab: 0 2 28 * * /opt/moodle-backup/scripts/cron_wrapper.sh ivama
 # =============================================================================
 
-MB_INSTALL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+MB_SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+MB_INSTALL_DIR="$(cd "$(dirname "$MB_SCRIPT_PATH")/.." && pwd)"
 export MB_INSTALL_DIR
 
 # Cargar librerías

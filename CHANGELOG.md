@@ -8,6 +8,12 @@ Este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
 _Proximas mejoras pendientes._
 
+## [5.0.4] - 2026-05-27
+
+### Fixed
+- **Symlink no resuelto en entrypoint** (`bin/mb`, `scripts/cron_wrapper.sh`): reemplazado `dirname "$0"` por `readlink -f "$0"` para resolver symlinks. `MB_INSTALL_DIR` ya no falla cuando `mb` se invoca via `/usr/local/bin/mb → /opt/moodle-backup/bin/mb` (INC-010).
+- **Comentario de versión en bin/mb**: corregido de `5.0.1` a `5.0.4`.
+
 ## [5.0.3] - 2026-05-27
 
 ### Fixed

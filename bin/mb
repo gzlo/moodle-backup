@@ -6,13 +6,14 @@
 # streaming a cloud storage, y notificaciones por email.
 #
 # Instalación: /usr/local/bin/mb → /opt/moodle-backup/bin/mb
-# Versión: 5.0.1
+# Versión: 5.0.4
 # =============================================================================
 
 set -euo pipefail
 
-# Detectar directorio de instalación
-MB_INSTALL_DIR="${MB_INSTALL_DIR:-$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)}"
+# Detectar directorio de instalación (resuelve symlink)
+MB_SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+MB_INSTALL_DIR="${MB_INSTALL_DIR:-$(cd "$(dirname "$MB_SCRIPT_PATH")/.." 2>/dev/null && pwd)}"
 export MB_INSTALL_DIR
 
 # Cargar librerías
