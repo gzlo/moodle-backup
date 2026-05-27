@@ -41,6 +41,20 @@ disable_maintenance_mode() {
     fi
 }
 
+# Crear archivo temporal de opciones MySQL (.cnf) para --defaults-extra-file
+# Resuelve INC-001 (MYSQL_PWD incompatible con MariaDB 10.11) e INC-003 (comillas en .cnf)
+_create_mysql_cnf() {
+    local tmp_cnf
+    tmp_cnf=$(mktemp "${TMPDIR:-/tmp}/.mysql_backup_${$}_XXXXXX.cnf")
+    chmod 600 "$tmp_cnf"
+    cat > "$tmp_cnf" <<EOF
+[client]
+user=$DB_USER
+password=$DB_PASSWORD
+EOF
+    echo "$tmp_cnf"
+}
+
 # Backup de base de datos (MySQL/MariaDB o PostgreSQL)
 backup_database() {
     local backup_dir="$1"
@@ -64,8 +78,12 @@ backup_database() {
             fi
             ;;
         *)
-            if MYSQL_PWD="$DB_PASSWORD" mysqldump -h "$host" -u "$DB_USER" ${port:+--port="$port"} "$DB_NAME" > "$temp_sql" 2>/dev/null \
-               && [ -f "$temp_sql" ] && [ -s "$temp_sql" ]; then
+            local tmp_cnf
+            tmp_cnf=$(_create_mysql_cnf)
+            local mysqldump_exit=0
+            mysqldump --defaults-extra-file="$tmp_cnf" -h "$host" ${port:+--port="$port"} "$DB_NAME" > "$temp_sql" 2>/dev/null || mysqldump_exit=$?
+            rm -f "$tmp_cnf"
+            if { [ "$mysqldump_exit" -eq 0 ] || [ "$mysqldump_exit" -eq 5 ]; } && [ -f "$temp_sql" ] && [ -s "$temp_sql" ]; then
                 dump_success=true
             fi
             ;;
@@ -239,10 +257,14 @@ validate_phase1_requirements() {
             ;;
         *)
             command -v mysqldump >/dev/null 2>&1 || { log_message "ERROR" "mysqldump requerido"; return 1; }
-            MYSQL_PWD="$DB_PASSWORD" mysql -h "$host" -u "$DB_USER" -e "USE $DB_NAME;" 2>/dev/null || {
+            local tmp_cnf
+            tmp_cnf=$(_create_mysql_cnf)
+            mysql --defaults-extra-file="$tmp_cnf" -h "$host" -e "USE $DB_NAME;" 2>/dev/null || {
+                rm -f "$tmp_cnf"
                 log_message "ERROR" "No se puede conectar a BD: $DB_NAME@$host"
                 return 1
             }
+            rm -f "$tmp_cnf"
             ;;
     esac
     
@@ -285,6 +307,7 @@ run_phase1() {
             rm -f "$backup_dir"/temp_database.sql 2>/dev/null || true
             rm -f "$backup_dir"/*.zip 2>/dev/null || true
         fi
+        # Limpiar archivos .cnf temporales de credenciales (seguridad)
         rm -f "${TMPDIR:-/tmp}"/.mysql_backup_"$$"_*.cnf 2>/dev/null || true
     }
     

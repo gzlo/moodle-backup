@@ -52,6 +52,44 @@ teardown() {
     [[ "$output" == *".zip"* ]]
 }
 
+@test "backup_database accepts mysqldump exit code 5 as success" {
+    local backup_dir="$MB_TEST_DIR/backup_output"
+    mkdir -p "$backup_dir"
+    init_logging "$MB_TEST_DIR/test.log"
+    
+    # Create a mock mysqldump that returns exit code 5 (warnings but valid dump)
+    local mock_dir="$MB_TEST_DIR/mock_mysqldump_exit5"
+    mkdir -p "$mock_dir"
+    cat > "$mock_dir/mysqldump" << 'HEREDOC'
+#!/bin/bash
+echo "CREATE TABLE test (id INT);"
+exit 5
+HEREDOC
+    chmod +x "$mock_dir/mysqldump"
+    
+    PATH="$mock_dir:$MB_PROJECT_DIR/tests/mocks:$PATH" run backup_database "$backup_dir"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *".zip"* ]]
+}
+
+@test "backup_database fails on mysqldump exit code 1" {
+    local backup_dir="$MB_TEST_DIR/backup_output"
+    mkdir -p "$backup_dir"
+    init_logging "$MB_TEST_DIR/test.log"
+    
+    # Create a mock mysqldump that returns exit code 1 (real error)
+    local mock_dir="$MB_TEST_DIR/mock_mysqldump_exit1"
+    mkdir -p "$mock_dir"
+    cat > "$mock_dir/mysqldump" << 'HEREDOC'
+#!/bin/bash
+exit 1
+HEREDOC
+    chmod +x "$mock_dir/mysqldump"
+    
+    PATH="$mock_dir:$MB_PROJECT_DIR/tests/mocks:$PATH" run backup_database "$backup_dir"
+    [ "$status" -eq 1 ]
+}
+
 @test "enable_maintenance_mode calls php" {
     init_logging "$MB_TEST_DIR/test.log"
     run enable_maintenance_mode
