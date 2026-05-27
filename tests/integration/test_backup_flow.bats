@@ -9,6 +9,7 @@ setup() {
     load_lib "config"
     load_lib "notifications"
     load_lib "backup_maintenance"
+    load_lib "backup_orchestrator"
     setup_test_configs
     
     # Create fake Moodle structure
@@ -200,3 +201,24 @@ teardown() {
     run validate_phase1_requirements
     [ "$status" -eq 0 ]
 }
+
+@test "cleanup_old_backups returns 0 when cloud path does not exist" {
+    init_logging "$MB_TEST_DIR/test.log"
+    
+    # Create a mock rclone that fails on lsf (simulates non-existent cloud path)
+    local mock_dir="$MB_TEST_DIR/mock_rclone_fail"
+    mkdir -p "$mock_dir"
+    cat > "$mock_dir/rclone" << 'HEREDOC'
+#!/bin/bash
+case "$1" in
+    lsf) exit 3 ;;
+    *) exit 0 ;;
+esac
+HEREDOC
+    chmod +x "$mock_dir/rclone"
+    
+    PATH="$mock_dir:$MB_PROJECT_DIR/tests/mocks:$PATH" run cleanup_old_backups
+    [ "$status" -eq 0 ]
+}
+
+

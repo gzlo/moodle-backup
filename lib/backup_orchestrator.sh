@@ -13,12 +13,13 @@ cleanup_old_backups() {
     local cloud_path="${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/${INSTANCE_NAME}"
     local retention="${RETENTION_COPIES:-2}"
     
-    local backup_folders
-    backup_folders=$(rclone lsf "$cloud_path" --dirs-only --format "t,f" 2>/dev/null | sort -k1,1)
-    
+    # Verificar acceso primero (INC-005: rclone lsf antes de verificar acceso)
     if ! rclone lsf "$cloud_path" --dirs-only --format "t,f" >/dev/null 2>&1; then
         log_message "WARNING" "No se pudo acceder a cloud storage para retención"; return 0
     fi
+    
+    local backup_folders
+    backup_folders=$(rclone lsf "$cloud_path" --dirs-only --format "t,f" 2>/dev/null | sort -k1,1) || true
     
     local folder_count
     folder_count=$(echo "$backup_folders" | grep -c '^[0-9]' 2>/dev/null || echo "0")

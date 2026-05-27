@@ -275,7 +275,7 @@ run_phase1() {
     # Modo mantenimiento
     enable_maintenance_mode || { send_phase1_error "No se pudo activar mantenimiento" "N/A"; return 1; }
     
-    # Cleanup en caso de error
+    # Cleanup en caso de error (INC-004: cleanup explicito, no trap EXIT anidado)
     local phase1_success=false
     # shellcheck disable=SC2329,SC2317
     _phase1_cleanup() {
@@ -285,8 +285,8 @@ run_phase1() {
             rm -f "$backup_dir"/temp_database.sql 2>/dev/null || true
             rm -f "$backup_dir"/*.zip 2>/dev/null || true
         fi
+        rm -f "${TMPDIR:-/tmp}"/.mysql_backup_"$$"_*.cnf 2>/dev/null || true
     }
-    trap _phase1_cleanup EXIT
     
     # Backups
     local db_success=false app_success=false
@@ -311,10 +311,12 @@ run_phase1() {
         phase1_success=true
         log_message "SUCCESS" "=== FASE 1 COMPLETADA ($elapsed) ==="
         send_phase1_success "$elapsed" "$(get_file_size "$db_backup")" "$(get_file_size "$app_backup")"
+        _phase1_cleanup
         return 0
     else
         log_message "ERROR" "=== FASE 1 CON ERRORES ($elapsed) ==="
         send_phase1_error "Errores en backup" "$elapsed"
+        _phase1_cleanup
         return 1
     fi
 }
