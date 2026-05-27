@@ -8,6 +8,18 @@ Este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
 _Proximas mejoras pendientes._
 
+## [5.0.2] - 2026-05-27
+
+### Fixed
+- **MariaDB 10.11 compatibilidad** (`lib/backup_maintenance.sh`): reemplazado `MYSQL_PWD` por `--defaults-extra-file` con archivo `.cnf` temporal (permisos 600). Resuelve autenticacion fallida con ciertos passwords en MariaDB 10.11 (INC-001).
+- **mysqldump exit code 5** (`lib/backup_maintenance.sh`): ahora se acepta exit code 5 (warnings) como exito valido. Previene falsos negativos en dumps completos con tablas MyISAM o vistas con definers distintos (INC-002).
+- **Comillas en option files** (`lib/backup_maintenance.sh`): archivo `.cnf` generado sin comillas dobles en valores. MySQL/MariaDB interpretaba las comillas como parte literal del valor (INC-003).
+- **trap EXIT anidado + set -u** (`lib/backup_maintenance.sh`): eliminado `trap _phase1_cleanup EXIT` anidado. Cleanup explicito antes de cada `return` evita `unbound variable` en bash 4.x (INC-004).
+- **rclone lsf antes de verificar acceso** (`lib/backup_orchestrator.sh`): reordenado `cleanup_old_backups()` para verificar acceso a cloud primero, luego ejecutar `rclone lsf` con `|| true`. Evita aborto del script en primer backup (INC-005).
+- **DB_PORT forzado a 3306** (`lib/config.sh`): eliminado default `DB_PORT=3306` cuando no configurado. `--port` solo se pasa si `DB_PORT` tiene valor explicito, preservando conexion via Unix socket (INC-006).
+- **Falso positivo permisos de symlink** (`lib/config.sh`): `readlink -f` resuelve symlinks antes de `stat -c "%a"`. Evita warning "permisos inseguros" en symlinks que siempre muestran 777 (INC-007).
+- **mb run falso negativo** (`bin/mb`): aumentado `sleep` de 2s a 4s y citado `$pid` en `ps -p "$pid"`. Reduce falsos negativos al verificar proceso en background (INC-008).
+
 ## [5.0.1] - 2026-05-26
 
 ### Security
