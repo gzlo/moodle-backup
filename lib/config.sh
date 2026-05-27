@@ -38,9 +38,10 @@ load_moodle_config() {
         return 1
     fi
 
-    # Verificar permisos seguros
-    local perms
-    perms=$(stat -c "%a" "$config_file" 2>/dev/null || echo "")
+    # Verificar permisos seguros (resolver symlink primero, INC-007)
+    local resolved_config perms
+    resolved_config=$(readlink -f "$config_file" 2>/dev/null || echo "$config_file")
+    perms=$(stat -c "%a" "$resolved_config" 2>/dev/null || echo "")
     if [ -n "$perms" ] && [ "$perms" != "600" ] && [ "$perms" != "400" ] && [ "$perms" != "500" ]; then
         echo "WARNING: Permisos inseguros ($perms) en $config_file. Ejecuta: chmod 600 $config_file" >&2
     fi
@@ -90,7 +91,6 @@ validate_config_variables() {
     [ -z "$DB_HOST" ] && export DB_HOST="localhost"
     [ -z "$DB_ENGINE" ] && export DB_ENGINE="mysql"
     [ -z "$DB_PORT" ] && [ "$DB_ENGINE" = "pgsql" ] && export DB_PORT="5432"
-    [ -z "$DB_PORT" ] && export DB_PORT="3306"
     [ -z "$PHP_CLI" ] && export PHP_CLI="/usr/bin/php"
     
     return $errors
