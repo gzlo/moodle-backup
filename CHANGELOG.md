@@ -138,7 +138,9 @@ _Proximas mejoras pendientes._
 - Arquitectura modular: 7 librerías independientes extraídas de scripts monolíticos
 - Instalación en `/opt/moodle-backup/` con symlink `/usr/local/bin/mb`
 
-[Unreleased]: https://github.com/gzlo/moodle-backup/compare/v5.0.0...HEAD
+[Unreleased]: https://github.com/gzlo/moodle-backup/compare/v5.0.2...HEAD
+[5.0.2]: https://github.com/gzlo/moodle-backup/compare/v5.0.1...v5.0.2
+[5.0.1]: https://github.com/gzlo/moodle-backup/compare/v5.0.0...v5.0.1
 [5.0.0]: https://github.com/gzlo/moodle-backup/compare/v4.2.0...v5.0.0
 [4.2.0]: https://github.com/gzlo/moodle-backup/compare/v4.1.0...v4.2.0
 [4.1.0]: https://github.com/gzlo/moodle-backup/compare/v4.0.0...v4.1.0
