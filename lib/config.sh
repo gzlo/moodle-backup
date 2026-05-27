@@ -563,10 +563,13 @@ test_config() {
             ;;
         *)
             if command -v mysql >/dev/null 2>&1; then
-                # shellcheck disable=SC2153
-                if MYSQL_PWD="$DB_PASSWORD" mysql -h "${DB_HOST:-localhost}" -u "$DB_USER" -e "USE $DB_NAME;" 2>/dev/null; then
+                local tmp_cnf
+                tmp_cnf=$(_create_mysql_cnf)
+                if mysql --defaults-extra-file="$tmp_cnf" -h "${DB_HOST:-localhost}" -e "USE $DB_NAME;" 2>/dev/null; then
+                    rm -f "$tmp_cnf"
                     echo "✅ Conexión a base de datos OK"
                 else
+                    rm -f "$tmp_cnf"
                     echo "❌ No se puede conectar a la base de datos"
                     errors=$((errors + 1))
                 fi
