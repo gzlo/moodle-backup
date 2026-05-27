@@ -188,8 +188,8 @@ run_background() {
     echo ""
     echo "🔍 Monitorear: tail -f $nohup_log"
     
-    sleep 2
-    if ps -p $pid >/dev/null 2>&1; then
+    sleep 4
+    if ps -p "$pid" >/dev/null 2>&1; then
         echo "✅ Confirmado: proceso ejecutándose"
     else
         show_message "error" "El proceso no se inició"

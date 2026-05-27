@@ -43,6 +43,39 @@ teardown() {
     [ "$PHP_CLI" = "/usr/bin/php" ]
 }
 
+@test "validate_config_variables does not force DB_PORT default for mysql" {
+    INSTANCE_NAME="test" SRC_APP="/tmp" DB_NAME="db" DB_USER="u" DB_PASSWORD="p" NOTIFICATION_EMAIL="e@e" SERVER_NAME="s"
+    DB_ENGINE="mysql"
+    DB_PORT=""
+    validate_config_variables 2>/dev/null || true
+    [ -z "$DB_PORT" ]
+}
+
+@test "load_moodle_config resolves symlink before checking permissions" {
+    # Create a valid config file with safe permissions
+    local real_config="$MB_TEST_DIR/real_config.config"
+    cat > "$real_config" << 'EOF'
+INSTANCE_NAME="symlink-test"
+SRC_APP="/tmp"
+DB_NAME="db"
+DB_USER="u"
+DB_PASSWORD="p"
+NOTIFICATION_EMAIL="e@e"
+SERVER_NAME="s"
+EOF
+    chmod 600 "$real_config"
+    
+    # Create a symlink to it (symlink shows 777)
+    local link_config="$CONFIG_ENABLED_DIR/symlink-test.config"
+    ln -s "$real_config" "$link_config"
+    
+    # Load should succeed without false "insecure permissions" warning
+    run load_moodle_config "symlink-test"
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"Permisos inseguros"* ]]
+    [[ "$output" != *"permisos inseguros"* ]]
+}
+
 @test "list_available_configs shows configs" {
     run list_available_configs
     [ "$status" -eq 0 ]
