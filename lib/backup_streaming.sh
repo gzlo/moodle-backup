@@ -168,6 +168,7 @@ run_phase2() {
         old_pid=$(cat "$PHASE2_PID_FILE")
         if ps -p "$old_pid" >/dev/null 2>&1; then
             log_message "ERROR" "Otro backup en curso (PID: $old_pid)"
+            send_phase2_error "Backup en curso (PID: $old_pid)" "N/A"
             return 1
         fi
         rm -f "$PHASE2_PID_FILE"

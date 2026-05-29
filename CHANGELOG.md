@@ -8,6 +8,12 @@ Este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
 _Proximas mejoras pendientes._
 
+## [5.0.5] - 2026-05-29
+
+### Fixed
+- **Scope clash en trap EXIT** (`lib/backup_streaming.sh`, `lib/backup_orchestrator.sh`): convertidas variables locales (`pid_file`, `phase2_success`, `orchestrator_log`, `backup_success`) a globales con prefijo (`PHASE2_*`, `ORCHESTRATOR_*`). Evita `unbound variable` cuando el trap EXIT dispara después de que las locales salen de ámbito al retornar la función padre (INC-011).
+- **Notificación faltante en conflicto de PID** (`lib/backup_streaming.sh`): agregado `send_phase2_error` cuando otro backup está en curso. Previene silencio en notificaciones al bloquear por PID duplicado.
+
 ## [5.0.4] - 2026-05-27
 
 ### Fixed
