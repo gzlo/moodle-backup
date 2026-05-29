@@ -83,11 +83,10 @@ run_full_backup() {
     local config_name="$1"
     local start_time
     start_time=$(date +%s)
-    local orchestrator_log
-    orchestrator_log="/tmp/backup_orquestador_${INSTANCE_NAME}_$(date +%d-%m-%Y_%H%M%S).log"
+    ORCHESTRATOR_LOG="/tmp/backup_orquestador_${INSTANCE_NAME}_$(date +%d-%m-%Y_%H%M%S).log"
 
     if [ "${DRY_RUN:-false}" = "true" ]; then
-        init_logging "$orchestrator_log"
+        init_logging "$ORCHESTRATOR_LOG"
         log_message "INFO" "====== DRY-RUN: VALIDANDO SIN EJECUTAR ======"
         log_message "INFO" "Configuracion: $config_name | Instancia: $INSTANCE_NAME"
         log_message "INFO" "Moodle: $SRC_APP | BD: $DB_NAME@${DB_HOST:-localhost}"
@@ -107,27 +106,27 @@ run_full_backup() {
 
         if validate_phase1_requirements 2>/dev/null; then
             log_message "SUCCESS" "====== DRY-RUN: VALIDACION OK ======"
-            rm -f "$orchestrator_log"
+            rm -f "$ORCHESTRATOR_LOG"
             return 0
         else
             log_message "ERROR" "====== DRY-RUN: VALIDACION FALLIDA ======"
-            rm -f "$orchestrator_log"
+            rm -f "$ORCHESTRATOR_LOG"
             return 1
         fi
     fi
 
     acquire_lock "$INSTANCE_NAME" || return 1
-    local backup_success=false
+    ORCHESTRATOR_SUCCESS=false
     # shellcheck disable=SC2329,SC2317
     _orchestrator_cleanup() {
         release_lock "$INSTANCE_NAME"
-        if [ "$backup_success" != "true" ]; then
-            rm -f "$orchestrator_log" 2>/dev/null || true
+        if [ "$ORCHESTRATOR_SUCCESS" != "true" ]; then
+            rm -f "$ORCHESTRATOR_LOG" 2>/dev/null || true
         fi
     }
     trap _orchestrator_cleanup EXIT
 
-    init_logging "$orchestrator_log"
+    init_logging "$ORCHESTRATOR_LOG"
     
     log_message "INFO" "====== INICIANDO BACKUP COMPLETO ======"
     log_message "INFO" "Configuración: $config_name | Instancia: $INSTANCE_NAME"
@@ -179,7 +178,7 @@ run_full_backup() {
     log_message "INFO" "Fase 2: $phase2_result"
     
     if [ "$phase1_success" = true ] && [ "$phase2_success" = true ]; then
-        backup_success=true
+        ORCHESTRATOR_SUCCESS=true
         write_heartbeat "$INSTANCE_NAME" "success" "$total_elapsed" "$phase1_result" "$phase2_result"
         log_message "SUCCESS" "====== BACKUP COMPLETO EXITOSO ======"
         send_final_notification "true" "$phase1_result" "$phase2_result" "$total_elapsed"

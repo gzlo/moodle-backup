@@ -150,38 +150,38 @@ run_phase2() {
      local backup_ext="tar.gz"
     [ "${ENCRYPT_BACKUPS:-false}" = "true" ] && [ -n "${GPG_PASSPHRASE:-}" ] && backup_ext="tar.gz.gpg"
     local backup_name="${INSTANCE_NAME}_moodledata_${date_str}_${time_str}.${backup_ext}"
-    local cloud_path="${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/${INSTANCE_NAME}/${date_str}/${backup_name}"
-    local checksum_file="/tmp/backup_stream_checksum_${INSTANCE_NAME}_${date_str}_${time_str}.sha256"
+    PHASE2_CLOUD_PATH="${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/${INSTANCE_NAME}/${date_str}/${backup_name}"
+    PHASE2_CHECKSUM_FILE="/tmp/backup_stream_checksum_${INSTANCE_NAME}_${date_str}_${time_str}.sha256"
     local log_file="${BACKUP_BASE}/${INSTANCE_NAME}/stream_backup_${date_str}_${time_str}.log"
-    local pid_file="/tmp/backup_stream_${INSTANCE_NAME}.pid"
+    PHASE2_PID_FILE="/tmp/backup_stream_${INSTANCE_NAME}.pid"
     
     mkdir -p "$(dirname "$log_file")"
     init_logging "$log_file"
     
     log_message "INFO" "=== FASE 2: STREAMING MOODLEDATA ==="
     log_message "INFO" "Configuración: $config_name | Fuente: $SRC_DATA"
-    log_message "INFO" "Destino: $cloud_path"
+    log_message "INFO" "Destino: $PHASE2_CLOUD_PATH"
     
     # Verificar que no hay otro proceso
-    if [ -f "$pid_file" ]; then
+    if [ -f "$PHASE2_PID_FILE" ]; then
         local old_pid
-        old_pid=$(cat "$pid_file")
+        old_pid=$(cat "$PHASE2_PID_FILE")
         if ps -p "$old_pid" >/dev/null 2>&1; then
             log_message "ERROR" "Otro backup en curso (PID: $old_pid)"
             return 1
         fi
-        rm -f "$pid_file"
+        rm -f "$PHASE2_PID_FILE"
     fi
     
-    echo $$ > "$pid_file"
-    local phase2_success=false
+    echo $$ > "$PHASE2_PID_FILE"
+    PHASE2_SUCCESS=false
     # shellcheck disable=SC2329,SC2317
     _phase2_cleanup() {
-        rm -f "$pid_file" "$checksum_file"
-        if [ "$phase2_success" != "true" ]; then
-            log_message "WARNING" "Limpiando archivo parcial en cloud: $cloud_path"
-            rclone delete "$cloud_path" 2>/dev/null || true
-            rclone delete "${cloud_path}.sha256" 2>/dev/null || true
+        rm -f "$PHASE2_PID_FILE" "$PHASE2_CHECKSUM_FILE"
+        if [ "$PHASE2_SUCCESS" != "true" ]; then
+            log_message "WARNING" "Limpiando archivo parcial en cloud: $PHASE2_CLOUD_PATH"
+            rclone delete "$PHASE2_CLOUD_PATH" 2>/dev/null || true
+            rclone delete "${PHASE2_CLOUD_PATH}.sha256" 2>/dev/null || true
         fi
     }
     trap _phase2_cleanup EXIT
@@ -195,7 +195,7 @@ run_phase2() {
         rclone mkdir "${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/${INSTANCE_NAME}/${date_str}/" 2>/dev/null || true
     
     # Ejecutar streaming
-    if ! perform_streaming_backup "$cloud_path" "$checksum_file"; then
+    if ! perform_streaming_backup "$PHASE2_CLOUD_PATH" "$PHASE2_CHECKSUM_FILE"; then
         local elapsed
         elapsed=$(get_elapsed_time "$start_time")
         send_phase2_error "Fallo streaming" "$elapsed"
@@ -203,19 +203,19 @@ run_phase2() {
     fi
 
     # Subir checksum a cloud
-    if [ -f "$checksum_file" ] && [ -s "$checksum_file" ]; then
-        rclone move "$checksum_file" "${cloud_path}.sha256" 2>/dev/null || true
+    if [ -f "$PHASE2_CHECKSUM_FILE" ] && [ -s "$PHASE2_CHECKSUM_FILE" ]; then
+        rclone move "$PHASE2_CHECKSUM_FILE" "${PHASE2_CLOUD_PATH}.sha256" 2>/dev/null || true
         log_message "INFO" "Checksum SHA256 subido a cloud"
     fi
     
     # Verificar
     local final_size
-    if final_size=$(verify_streaming_backup "$cloud_path"); then
-        phase2_success=true
+    if final_size=$(verify_streaming_backup "$PHASE2_CLOUD_PATH"); then
+        PHASE2_SUCCESS=true
         local elapsed
         elapsed=$(get_elapsed_time "$start_time")
         log_message "SUCCESS" "=== FASE 2 COMPLETADA ($elapsed) ==="
-        send_phase2_success "$elapsed" "$final_size" "$cloud_path"
+        send_phase2_success "$elapsed" "$final_size" "$PHASE2_CLOUD_PATH"
         return 0
     else
         local elapsed
