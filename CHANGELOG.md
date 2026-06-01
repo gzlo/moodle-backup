@@ -4,7 +4,7 @@ Todos los cambios notables de este proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 Este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
-## [Unreleased]
+## [5.0.6] - 2026-06-01
 
 ### Added
 - **Log stack jerárquico** (`lib/logging.sh`): nuevas funciones `push_log`/`pop_log` que permiten escribir mensajes a múltiples archivos de log simultáneamente. `log_message` ahora escribe a todos los niveles del stack activo.
@@ -18,6 +18,10 @@ Este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 - **init_logging pisado entre fases** (`lib/logging.sh`, `lib/backup_maintenance.sh`, `lib/backup_streaming.sh`): reemplazado `init_logging` por `push_log`/`pop_log` en `run_phase1` y `run_phase2`. Los mensajes de cada fase ahora se escriben tanto en su log específico como en el log del orquestador, resolviendo la fragmentación del registro de ejecución.
 - **Trap EXIT anidado sobrescribe lock release** (`lib/backup_streaming.sh`): eliminado `trap _phase2_cleanup EXIT` que reemplazaba al trap del orquestador. Reemplazado por cleanup explícito (`_run_phase2_cleanup`) antes de cada `return`, asegurando que `release_lock` siempre se ejecute.
 - **rotate_logs nunca llamada** (`lib/backup_orchestrator.sh`): `rotate_logs` ahora se invoca al inicio de `run_full_backup` para logs locales y de backup.
+
+## [Unreleased]
+
+_Proximas mejoras pendientes._
 
 ## [5.0.5] - 2026-05-29
 
@@ -166,7 +170,11 @@ Este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 - Arquitectura modular: 7 librerías independientes extraídas de scripts monolíticos
 - Instalación en `/opt/moodle-backup/` con symlink `/usr/local/bin/mb`
 
-[Unreleased]: https://github.com/gzlo/moodle-backup/compare/v5.0.2...HEAD
+[Unreleased]: https://github.com/gzlo/moodle-backup/compare/v5.0.6...HEAD
+[5.0.6]: https://github.com/gzlo/moodle-backup/compare/v5.0.5...v5.0.6
+[5.0.5]: https://github.com/gzlo/moodle-backup/compare/v5.0.4...v5.0.5
+[5.0.4]: https://github.com/gzlo/moodle-backup/compare/v5.0.3...v5.0.4
+[5.0.3]: https://github.com/gzlo/moodle-backup/compare/v5.0.2...v5.0.3
 [5.0.2]: https://github.com/gzlo/moodle-backup/compare/v5.0.1...v5.0.2
 [5.0.1]: https://github.com/gzlo/moodle-backup/compare/v5.0.0...v5.0.1
 [5.0.0]: https://github.com/gzlo/moodle-backup/compare/v4.2.0...v5.0.0
