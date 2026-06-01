@@ -284,7 +284,7 @@ run_phase1() {
     mkdir -p "$backup_dir"
     
     local log_file="${backup_dir}/${INSTANCE_NAME}_backup_log_${date_str}.log"
-    init_logging "$log_file"
+    push_log "$log_file"
     
     local cloud_path="${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/${INSTANCE_NAME}/${date_str}"
     
@@ -335,11 +335,13 @@ run_phase1() {
         log_message "SUCCESS" "=== FASE 1 COMPLETADA ($elapsed) ==="
         send_phase1_success "$elapsed" "$(get_file_size "$db_backup")" "$(get_file_size "$app_backup")"
         _phase1_cleanup
+        pop_log
         return 0
     else
         log_message "ERROR" "=== FASE 1 CON ERRORES ($elapsed) ==="
         send_phase1_error "Errores en backup" "$elapsed"
         _phase1_cleanup
+        pop_log
         return 1
     fi
 }

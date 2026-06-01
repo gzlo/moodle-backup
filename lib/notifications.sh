@@ -345,6 +345,7 @@ send_phase1_error() {
     # shellcheck disable=SC2059
     subject=$(printf "$(_ subject_phase1_error)" "$SERVER_NAME")
     
+    local log_ref="${ORCHESTRATOR_LOG:-${MB_LOG_FILE:-N/A}}"
     local body
     body="BACKUP MOODLE FALLIDO - $(date)
 
@@ -359,7 +360,8 @@ Información del Sistema:
 - Tiempo transcurrido: $elapsed
 - Fecha/Hora: $(date)
 
-Log disponible en: ${MB_LOG_FILE:-N/A}
+Run ID: ${RUN_ID:-N/A}
+Log: $log_ref
 
 ---
 Sistema de Backup Automatizado ${SERVER_NAME}"
@@ -377,6 +379,7 @@ send_phase1_success() {
     # shellcheck disable=SC2059
     subject=$(printf "$(_ subject_phase1_ok)" "$SERVER_NAME")
     
+    local log_ref="${ORCHESTRATOR_LOG:-${MB_LOG_FILE:-N/A}}"
     local body
     body="BACKUP ${INSTANCE_NAME} COMPLETADO - $(date)
 
@@ -389,6 +392,9 @@ Detalles:
 Archivos:
 - Base de datos: $db_size
 - Aplicación: $app_size
+
+Run ID: ${RUN_ID:-N/A}
+Log: $log_ref
 
 ---
 Sistema de Backup Automatizado ${SERVER_NAME}"
@@ -406,6 +412,7 @@ send_phase2_error() {
     # shellcheck disable=SC2059
     subject=$(printf "$(_ subject_phase2_error)" "$SERVER_NAME")
     
+    local log_ref="${ORCHESTRATOR_LOG:-${MB_LOG_FILE:-N/A}}"
     local body
     body="BACKUP ${INSTANCE_NAME} MOODLEDATA FALLIDO - $(date)
 
@@ -418,7 +425,8 @@ Información:
 - Directorio: ${SRC_DATA}
 - Tiempo transcurrido: $elapsed
 
-Log disponible en: ${MB_LOG_FILE:-N/A}
+Run ID: ${RUN_ID:-N/A}
+Log: $log_ref
 
 ---
 Sistema de Backup Automatizado ${SERVER_NAME}"
@@ -436,6 +444,7 @@ send_phase2_success() {
     # shellcheck disable=SC2059
     subject=$(printf "$(_ subject_phase2_ok)" "$SERVER_NAME")
     
+    local log_ref="${ORCHESTRATOR_LOG:-${MB_LOG_FILE:-N/A}}"
     local body
     body="BACKUP ${INSTANCE_NAME} MOODLEDATA COMPLETADO - $(date)
 
@@ -445,6 +454,9 @@ Detalles:
 - Ubicación: $cloud_path
 - Tamaño: $final_size
 - Tiempo total: $elapsed
+
+Run ID: ${RUN_ID:-N/A}
+Log: $log_ref
 
 ---
 Sistema de Backup Automatizado ${SERVER_NAME}"
@@ -462,6 +474,7 @@ send_progress_notification() {
     # shellcheck disable=SC2059
     subject=$(printf "$(_ subject_progress)" "$stage" "$SERVER_NAME")
     
+    local log_ref="${ORCHESTRATOR_LOG:-${MB_LOG_FILE:-N/A}}"
     local body
     body="BACKUP ${INSTANCE_NAME} - PROGRESO - $(date)
 
@@ -470,6 +483,9 @@ Etapa: $stage
 Estado: $status
 Tiempo transcurrido: $elapsed
 Servidor: ${SERVER_NAME}
+
+Run ID: ${RUN_ID:-N/A}
+Log: $log_ref
 
 ---
 Sistema de Backup Automatizado ${SERVER_NAME}"
@@ -495,6 +511,11 @@ send_final_notification() {
         status="COMPLETADO CON ERRORES"
     fi
     
+    local log_ref="${ORCHESTRATOR_LOG:-${MB_LOG_FILE:-N/A}}"
+    local log_tail=""
+    if [ -n "$log_ref" ] && [ -f "$log_ref" ]; then
+        log_tail=$(tail -5 "$log_ref" 2>/dev/null || echo "N/A")
+    fi
     local body
     body="BACKUP MOODLE COMPLETO - $status - $(date)
 
@@ -503,8 +524,14 @@ Resumen:
 - Fase 2 (moodledata): $phase2_result
 - Tiempo total: $elapsed
 
+Run ID: ${RUN_ID:-N/A}
 Servidor: ${SERVER_NAME}
 Instancia: ${INSTANCE_NAME}
+
+Últimas líneas del log:
+$log_tail
+
+Log completo: $log_ref
 
 ---
 Sistema de Backup Automatizado ${SERVER_NAME}"

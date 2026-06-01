@@ -3,24 +3,49 @@
 # SISTEMA DE LOGGING - Moodle Backup CLI
 # =============================================================================
 
-# Variable global para archivo de log actual
+# Stack de archivos de log activos
 MB_LOG_FILE="${MB_LOG_FILE:-}"
+MB_LOG_STACK=()
 
-# Inicializar logging para una sesión de backup
+# Inicializar logging para una sesión de backup (push al stack)
 init_logging() {
-    local log_file="$1"
-    MB_LOG_FILE="$log_file"
-    mkdir -p "$(dirname "$MB_LOG_FILE")"
+    push_log "$1"
 }
 
-# Escribir mensaje al log y stdout
+# Push: agrega un archivo al stack de logs
+push_log() {
+    local log_file="$1"
+    mkdir -p "$(dirname "$log_file")"
+    MB_LOG_STACK+=("$log_file")
+    MB_LOG_FILE="$log_file"
+}
+
+# Pop: remueve el último archivo del stack
+pop_log() {
+    if [ ${#MB_LOG_STACK[@]} -gt 0 ]; then
+        unset 'MB_LOG_STACK[${#MB_LOG_STACK[@]}-1]'
+    fi
+    if [ ${#MB_LOG_STACK[@]} -gt 0 ]; then
+        MB_LOG_FILE="${MB_LOG_STACK[-1]}"
+    else
+        MB_LOG_FILE=""
+    fi
+}
+
+# Escribir mensaje a todos los logs del stack + stdout
 log_message() {
     local level="$1" message="$2"
     local timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     local line="[$timestamp] [$level] $message"
     
-    if [ -n "$MB_LOG_FILE" ]; then
+    if [ ${#MB_LOG_STACK[@]} -gt 0 ]; then
+        local logf
+        for logf in "${MB_LOG_STACK[@]}"; do
+            echo "$line" >> "$logf"
+        done
+        echo "$line"
+    elif [ -n "$MB_LOG_FILE" ]; then
         echo "$line" | tee -a "$MB_LOG_FILE"
     else
         echo "$line"

@@ -23,8 +23,19 @@ check_streaming_prerequisites() {
 perform_streaming_backup() {
     local cloud_path="$1"
     local checksum_file="$2"
+    local start_time="${3:-$(date +%s)}"
     
     log_message "INFO" "Ejecutando compresion y envio streaming..."
+    
+    # Heartbeat: still-alive cada 5 minutos
+    local _hb_pid
+    (
+        while true; do
+            sleep 300
+            log_message "INFO" "[Progress] Streaming en curso... ($(get_elapsed_time "$start_time"))"
+        done
+    ) &
+    _hb_pid=$!
     
     # Construir exclusiones
     local exclude_params=""
@@ -48,6 +59,8 @@ perform_streaming_backup() {
     local encrypt="${ENCRYPT_BACKUPS:-false}"
     local gpg_pass="${GPG_PASSPHRASE:-}"
     local tee_cmd=""
+    local _stream_ok=false
+    local _gpg_clean=""
 
     if [ -n "$checksum_file" ]; then
         tee_cmd="tee >(sha256sum > \"$checksum_file\")"
@@ -59,33 +72,43 @@ perform_streaming_backup() {
         gpg_passfile=$(mktemp)
         chmod 600 "$gpg_passfile"
         echo -n "$gpg_pass" > "$gpg_passfile"
+        _gpg_clean="$gpg_passfile"
         if [ -n "$checksum_file" ]; then
             if eval "$tar_cmd" | gpg --batch --passphrase-file "$gpg_passfile" --symmetric --cipher-algo AES256 2>/dev/null | eval "$tee_cmd" | eval "$rclone_cmd"; then
-                rm -f "$gpg_passfile"
-                log_message "SUCCESS" "Streaming cifrado completado (checksum generado)"
-                return 0
+                _stream_ok=true
             fi
         else
             if eval "$tar_cmd" | gpg --batch --passphrase-file "$gpg_passfile" --symmetric --cipher-algo AES256 2>/dev/null | eval "$rclone_cmd"; then
-                rm -f "$gpg_passfile"
-                log_message "SUCCESS" "Streaming cifrado completado"
-                return 0
+                _stream_ok=true
             fi
         fi
-        rm -f "$gpg_passfile"
     else
         log_message "INFO" "Comando: $tar_cmd | $rclone_cmd"
         if [ -n "$checksum_file" ]; then
             if eval "$tar_cmd" | eval "$tee_cmd" | eval "$rclone_cmd"; then
-                log_message "SUCCESS" "Streaming completado (checksum generado)"
-                return 0
+                _stream_ok=true
             fi
         else
             if eval "$tar_cmd" | eval "$rclone_cmd"; then
-                log_message "SUCCESS" "Streaming completado"
-                return 0
+                _stream_ok=true
             fi
         fi
+    fi
+
+    # Detener heartbeat
+    kill "$_hb_pid" 2>/dev/null || true
+    wait "$_hb_pid" 2>/dev/null || true
+
+    # Limpiar passfile GPG
+    [ -n "$_gpg_clean" ] && rm -f "$_gpg_clean"
+
+    if [ "$_stream_ok" = true ]; then
+        if [ -n "$checksum_file" ]; then
+            log_message "SUCCESS" "Streaming completado (checksum generado)"
+        else
+            log_message "SUCCESS" "Streaming completado"
+        fi
+        return 0
     fi
 
     log_message "ERROR" "Fallo el streaming"
@@ -156,7 +179,7 @@ run_phase2() {
     PHASE2_PID_FILE="/tmp/backup_stream_${INSTANCE_NAME}.pid"
     
     mkdir -p "$(dirname "$log_file")"
-    init_logging "$log_file"
+    push_log "$log_file"
     
     log_message "INFO" "=== FASE 2: STREAMING MOODLEDATA ==="
     log_message "INFO" "Configuración: $config_name | Fuente: $SRC_DATA"
@@ -169,6 +192,7 @@ run_phase2() {
         if ps -p "$old_pid" >/dev/null 2>&1; then
             log_message "ERROR" "Otro backup en curso (PID: $old_pid)"
             send_phase2_error "Backup en curso (PID: $old_pid)" "N/A"
+            pop_log
             return 1
         fi
         rm -f "$PHASE2_PID_FILE"
@@ -176,19 +200,9 @@ run_phase2() {
     
     echo $$ > "$PHASE2_PID_FILE"
     PHASE2_SUCCESS=false
-    # shellcheck disable=SC2329,SC2317
-    _phase2_cleanup() {
-        rm -f "$PHASE2_PID_FILE" "$PHASE2_CHECKSUM_FILE"
-        if [ "$PHASE2_SUCCESS" != "true" ]; then
-            log_message "WARNING" "Limpiando archivo parcial en cloud: $PHASE2_CLOUD_PATH"
-            rclone delete "$PHASE2_CLOUD_PATH" 2>/dev/null || true
-            rclone delete "${PHASE2_CLOUD_PATH}.sha256" 2>/dev/null || true
-        fi
-    }
-    trap _phase2_cleanup EXIT
     
     # Prerequisites
-    check_streaming_prerequisites || { send_phase2_error "Falla en prerequisites" "N/A"; return 1; }
+    check_streaming_prerequisites || { send_phase2_error "Falla en prerequisites" "N/A"; pop_log; return 1; }
     
     # Crear dir en GDrive
     rclone mkdir "${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/${INSTANCE_NAME}/${date_str}/" 2>/dev/null
@@ -196,10 +210,12 @@ run_phase2() {
         rclone mkdir "${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/${INSTANCE_NAME}/${date_str}/" 2>/dev/null || true
     
     # Ejecutar streaming
-    if ! perform_streaming_backup "$PHASE2_CLOUD_PATH" "$PHASE2_CHECKSUM_FILE"; then
+    if ! perform_streaming_backup "$PHASE2_CLOUD_PATH" "$PHASE2_CHECKSUM_FILE" "$start_time"; then
         local elapsed
         elapsed=$(get_elapsed_time "$start_time")
         send_phase2_error "Fallo streaming" "$elapsed"
+        _run_phase2_cleanup
+        pop_log
         return 1
     fi
 
@@ -215,13 +231,38 @@ run_phase2() {
         PHASE2_SUCCESS=true
         local elapsed
         elapsed=$(get_elapsed_time "$start_time")
+
+        # Métricas de rendimiento
+        local stream_size
+        stream_size=$(rclone ls "$PHASE2_CLOUD_PATH" 2>/dev/null | awk '{print $1}')
+        local stream_elapsed=$(( $(date +%s) - start_time ))
+        local speed="N/A"
+        if [ "$stream_elapsed" -gt 0 ] && [ -n "$stream_size" ] && [ "$stream_size" -gt 0 ]; then
+            speed=$(echo "scale=2; $stream_size / 1048576 / $stream_elapsed" | bc 2>/dev/null || echo "N/A")
+            log_message "INFO" "[Metrics] Streaming: $(echo "scale=1; $stream_size / 1073741824" | bc 2>/dev/null)G en ${elapsed} (${speed}MB/s)"
+        fi
+
         log_message "SUCCESS" "=== FASE 2 COMPLETADA ($elapsed) ==="
         send_phase2_success "$elapsed" "$final_size" "$PHASE2_CLOUD_PATH"
+        _run_phase2_cleanup
+        pop_log
         return 0
     else
         local elapsed
         elapsed=$(get_elapsed_time "$start_time")
         send_phase2_error "Verificación falló" "$elapsed"
+        _run_phase2_cleanup
+        pop_log
         return 1
+    fi
+}
+
+# Cleanup explícito de Fase 2 (sin trap EXIT para no sobrescribir el del orquestador)
+_run_phase2_cleanup() {
+    rm -f "$PHASE2_PID_FILE" "$PHASE2_CHECKSUM_FILE"
+    if [ "${PHASE2_SUCCESS:-false}" != "true" ]; then
+        log_message "WARNING" "Limpiando archivo parcial en cloud: $PHASE2_CLOUD_PATH"
+        rclone delete "$PHASE2_CLOUD_PATH" 2>/dev/null || true
+        rclone delete "${PHASE2_CLOUD_PATH}.sha256" 2>/dev/null || true
     fi
 }

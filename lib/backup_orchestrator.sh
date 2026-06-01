@@ -83,11 +83,17 @@ run_full_backup() {
     local config_name="$1"
     local start_time
     start_time=$(date +%s)
-    ORCHESTRATOR_LOG="/tmp/backup_orquestador_${INSTANCE_NAME}_$(date +%d-%m-%Y_%H%M%S).log"
+    RUN_ID="${INSTANCE_NAME}_$(date +%Y%m%d_%H%M%S)_$$"
+    ORCHESTRATOR_LOG="/tmp/backup_orquestador_${RUN_ID}.log"
+
+    # Rotar logs antiguos
+    rotate_logs "/var/log/moodle-backup" "${LOG_RETENTION_DAYS:-30}"
+    rotate_logs "${BACKUP_BASE:-}" "${LOG_RETENTION_DAYS:-30}"
 
     if [ "${DRY_RUN:-false}" = "true" ]; then
         init_logging "$ORCHESTRATOR_LOG"
         log_message "INFO" "====== DRY-RUN: VALIDANDO SIN EJECUTAR ======"
+        log_message "INFO" "RUN_ID: $RUN_ID"
         log_message "INFO" "Configuracion: $config_name | Instancia: $INSTANCE_NAME"
         log_message "INFO" "Moodle: $SRC_APP | BD: $DB_NAME@${DB_HOST:-localhost}"
         log_message "INFO" "Cloud: ${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/${INSTANCE_NAME}"
@@ -129,6 +135,7 @@ run_full_backup() {
     init_logging "$ORCHESTRATOR_LOG"
     
     log_message "INFO" "====== INICIANDO BACKUP COMPLETO ======"
+    log_message "INFO" "RUN_ID: $RUN_ID"
     log_message "INFO" "Configuración: $config_name | Instancia: $INSTANCE_NAME"
     
     # Retención

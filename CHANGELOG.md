@@ -6,7 +6,18 @@ Este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
-_Proximas mejoras pendientes._
+### Added
+- **Log stack jerárquico** (`lib/logging.sh`): nuevas funciones `push_log`/`pop_log` que permiten escribir mensajes a múltiples archivos de log simultáneamente. `log_message` ahora escribe a todos los niveles del stack activo.
+- **Run ID para correlación** (`lib/backup_orchestrator.sh`): cada ejecución genera un `RUN_ID` único (instancia+fecha+PID). Incluido en todos los logs, heartbeats y notificaciones.
+- **Still-alive durante streaming** (`lib/backup_streaming.sh`): proceso background que cada 5 minutos loguea "[Progress] Streaming en curso..." durante la Fase 2. Evita logs silenciosos en operaciones largas.
+- **Métricas de rendimiento** (`lib/backup_streaming.sh`): al finalizar streaming se loguea tamaño total, tiempo y velocidad de transferencia (MB/s).
+- **Notificaciones enriquecidas** (`lib/notifications.sh`): todas las notificaciones incluyen `RUN_ID` y ruta del log activo. El email final incluye las últimas 5 líneas del log.
+- **Tests de log stack** (`tests/unit/test_logging.bats`): 7 nuevos tests para `push_log`, `pop_log`, escritura multi-archivo y preservación de contexto parental.
+
+### Fixed
+- **init_logging pisado entre fases** (`lib/logging.sh`, `lib/backup_maintenance.sh`, `lib/backup_streaming.sh`): reemplazado `init_logging` por `push_log`/`pop_log` en `run_phase1` y `run_phase2`. Los mensajes de cada fase ahora se escriben tanto en su log específico como en el log del orquestador, resolviendo la fragmentación del registro de ejecución.
+- **Trap EXIT anidado sobrescribe lock release** (`lib/backup_streaming.sh`): eliminado `trap _phase2_cleanup EXIT` que reemplazaba al trap del orquestador. Reemplazado por cleanup explícito (`_run_phase2_cleanup`) antes de cada `return`, asegurando que `release_lock` siempre se ejecute.
+- **rotate_logs nunca llamada** (`lib/backup_orchestrator.sh`): `rotate_logs` ahora se invoca al inicio de `run_full_backup` para logs locales y de backup.
 
 ## [5.0.5] - 2026-05-29
 
