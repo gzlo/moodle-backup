@@ -202,7 +202,7 @@ STREAM_TO_CLOUD="true"
 
 # Archivos/directorios a excluir del backup de moodledata
 # Separados por espacios, usa patrones como "cache/* sessions/*"
-MOODLEDATA_EXCLUDES="cache/* localcache/* temp/* sessions/* trashdir/* backup/* *.tmp *.lock"
+MOODLEDATA_EXCLUDES="cache/* localcache/* muclh/* lock/* temp/* sessions/* trashdir/* backup/* h5plib/* *.tmp *.lock *.log"
 
 # Número de copias de backup a mantener localmente
 # El sistema automáticamente elimina backups antiguos
@@ -274,6 +274,10 @@ RETRY_INITIAL_WAIT="5"
 # Limite de ancho de banda para uploads (KBps, vacio = sin limite)
 # Ej: "5120" = 5 MB/s, "10240" = 10 MB/s
 UPLOAD_BANDWIDTH_LIMIT=""
+
+# Reintentos para streaming de moodledata (0 = sin reintentos)
+# El pipeline tar se re-ejecuta si falla la subida a cloud
+STREAMING_RETRIES="3"
 
 # Idioma del CLI: "auto" | "es" | "en"
 # "auto" detecta desde LANG del sistema. Los logs y notificaciones usan el idioma del CLI.

@@ -4,7 +4,7 @@
 # =============================================================================
 
 # Versión del CLI
-export MB_VERSION="5.0.6"
+export MB_VERSION="5.1.0"
 
 # Detectar soporte de colores
 detect_color_support() {
@@ -20,7 +20,10 @@ setup_colors() {
         RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
         BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
     else
-        RED=''; GREEN=''; YELLOW=''; BLUE=''; export BOLD=''; NC=''
+        RED=''; GREEN=''; YELLOW=''; BLUE=''; NC=''
+        # usada externamente via source por bin/mb y otros scripts
+        # shellcheck disable=SC2034
+        BOLD=''
     fi
 }
 

@@ -37,11 +37,20 @@ perform_streaming_backup() {
     ) &
     _hb_pid=$!
     
-    # Construir exclusiones
+    # Construir exclusiones con prefijo del directorio fuente
+    # Patrones con '/' se prefijan con $(basename "$SRC_DATA")/ porque
+    # tar almacena paths relativos a -C dirname. Patrones sin '/'
+    # (ej: *.tmp) matchean por basename en todo el arbol.
     local exclude_params=""
+    local data_basename
+    data_basename=$(basename "$SRC_DATA")
     if [ -n "$MOODLEDATA_EXCLUDES" ]; then
         for exclude in $MOODLEDATA_EXCLUDES; do
-            exclude_params="$exclude_params --exclude='$exclude'"
+            if [[ "$exclude" == */* ]]; then
+                exclude_params="$exclude_params --exclude='${data_basename}/${exclude}'"
+            else
+                exclude_params="$exclude_params --exclude='$exclude'"
+            fi
         done
     fi
 
@@ -53,8 +62,6 @@ perform_streaming_backup() {
         log_message "INFO" "Modo incremental activado"
     fi
     
-    local tar_cmd
-    tar_cmd="tar $exclude_params -czf - -C $(dirname "$SRC_DATA") $(basename "$SRC_DATA")/"
     local rclone_cmd="rclone rcat '$cloud_path' --bwlimit '${UPLOAD_BANDWIDTH_LIMIT:-0}'"
     local encrypt="${ENCRYPT_BACKUPS:-false}"
     local gpg_pass="${GPG_PASSPHRASE:-}"
@@ -66,6 +73,11 @@ perform_streaming_backup() {
         tee_cmd="tee >(sha256sum > \"$checksum_file\")"
     fi
 
+    # Construir pipeline completo
+    # shellcheck disable=SC2155
+    local tar_cmd="tar $exclude_params -czf - -C $(dirname "$SRC_DATA") $(basename "$SRC_DATA")/ 2>>\"${MB_LOG_FILE:-/dev/null}\""
+    local _pipeline_cmd
+
     if [ "$encrypt" = "true" ] && [ -n "$gpg_pass" ]; then
         log_message "INFO" "Streaming con cifrado GPG"
         local gpg_passfile
@@ -73,27 +85,59 @@ perform_streaming_backup() {
         chmod 600 "$gpg_passfile"
         echo -n "$gpg_pass" > "$gpg_passfile"
         _gpg_clean="$gpg_passfile"
-        if [ -n "$checksum_file" ]; then
-            if eval "$tar_cmd" | gpg --batch --passphrase-file "$gpg_passfile" --symmetric --cipher-algo AES256 2>/dev/null | eval "$tee_cmd" | eval "$rclone_cmd"; then
-                _stream_ok=true
-            fi
-        else
-            if eval "$tar_cmd" | gpg --batch --passphrase-file "$gpg_passfile" --symmetric --cipher-algo AES256 2>/dev/null | eval "$rclone_cmd"; then
-                _stream_ok=true
-            fi
-        fi
+        _pipeline_cmd="${tar_cmd} | gpg --batch --passphrase-file ${gpg_passfile} --symmetric --cipher-algo AES256 2>/dev/null"
     else
         log_message "INFO" "Comando: $tar_cmd | $rclone_cmd"
-        if [ -n "$checksum_file" ]; then
-            if eval "$tar_cmd" | eval "$tee_cmd" | eval "$rclone_cmd"; then
-                _stream_ok=true
+        _pipeline_cmd="${tar_cmd}"
+    fi
+
+    if [ -n "$checksum_file" ]; then
+        _pipeline_cmd="${_pipeline_cmd} | ${tee_cmd}"
+    fi
+    _pipeline_cmd="${_pipeline_cmd} | ${rclone_cmd}"
+
+    # Ejecutar con reintentos y captura de stderr
+    local _rclone_stderr=""
+    local _stream_attempt=1
+    local _stream_retries="${STREAMING_RETRIES:-3}"
+    local _stream_wait=30
+    local _rc=0
+
+    while [ $_stream_attempt -le "$_stream_retries" ]; do
+        _rclone_stderr=$(mktemp)
+        log_message "INFO" "Streaming intento $_stream_attempt/$_stream_retries"
+
+        {
+            eval "$_pipeline_cmd"
+        } 2>"$_rclone_stderr"
+        _rc=$?
+
+        if [ $_rc -eq 0 ]; then
+            _stream_ok=true
+            rm -f "$_rclone_stderr"
+            break
+        fi
+
+        # Loguear stderr del fallo
+        if [ -s "$_rclone_stderr" ]; then
+            local _stderr_content
+            _stderr_content=$(tr '\n' ' ' < "$_rclone_stderr")
+            log_message "ERROR" "Streaming fallo (intento $_stream_attempt/$_stream_retries, exit $_rc): $_stderr_content"
+            if echo "$_stderr_content" | grep -qiE 'rateLimitExceeded|quotaExceeded|userRateLimit|dailyLimit|403'; then
+                log_message "ERROR" "Posible límite de cuota diaria de Google Drive (750GB)"
             fi
         else
-            if eval "$tar_cmd" | eval "$rclone_cmd"; then
-                _stream_ok=true
-            fi
+            log_message "ERROR" "Streaming fallo (intento $_stream_attempt/$_stream_retries, exit $_rc) - stderr vacío"
         fi
-    fi
+        rm -f "$_rclone_stderr"
+
+        if [ $_stream_attempt -lt "$_stream_retries" ]; then
+            log_message "WARNING" "Reintentando streaming en ${_stream_wait}s..."
+            sleep $_stream_wait
+            _stream_wait=$((_stream_wait * 2))
+        fi
+        _stream_attempt=$((_stream_attempt + 1))
+    done
 
     # Detener heartbeat
     kill "$_hb_pid" 2>/dev/null || true
@@ -111,7 +155,7 @@ perform_streaming_backup() {
         return 0
     fi
 
-    log_message "ERROR" "Fallo el streaming"
+    log_message "ERROR" "Fallo el streaming tras $_stream_retries intentos"
     return 1
 }
 
@@ -260,9 +304,13 @@ run_phase2() {
 # Cleanup explícito de Fase 2 (sin trap EXIT para no sobrescribir el del orquestador)
 _run_phase2_cleanup() {
     rm -f "$PHASE2_PID_FILE" "$PHASE2_CHECKSUM_FILE"
-    if [ "${PHASE2_SUCCESS:-false}" != "true" ]; then
-        log_message "WARNING" "Limpiando archivo parcial en cloud: $PHASE2_CLOUD_PATH"
-        rclone delete "$PHASE2_CLOUD_PATH" 2>/dev/null || true
+    if [ "${PHASE2_SUCCESS:-false}" != "true" ] && [ -n "$PHASE2_CLOUD_PATH" ]; then
+        if rclone ls "$PHASE2_CLOUD_PATH" 2>/dev/null | grep -q .; then
+            log_message "WARNING" "Archivo parcial preservado en cloud (existe con datos, no se elimina): $PHASE2_CLOUD_PATH"
+        else
+            log_message "WARNING" "Limpiando archivo parcial en cloud: $PHASE2_CLOUD_PATH"
+            rclone delete "$PHASE2_CLOUD_PATH" 2>/dev/null || true
+        fi
         rclone delete "${PHASE2_CLOUD_PATH}.sha256" 2>/dev/null || true
     fi
 }

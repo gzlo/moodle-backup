@@ -19,6 +19,18 @@ Este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 - **Trap EXIT anidado sobrescribe lock release** (`lib/backup_streaming.sh`): eliminado `trap _phase2_cleanup EXIT` que reemplazaba al trap del orquestador. Reemplazado por cleanup explícito (`_run_phase2_cleanup`) antes de cada `return`, asegurando que `release_lock` siempre se ejecute.
 - **rotate_logs nunca llamada** (`lib/backup_orchestrator.sh`): `rotate_logs` ahora se invoca al inicio de `run_full_backup` para logs locales y de backup.
 
+## [5.1.0] - 2026-06-10
+
+### Added
+- **Reintentos en streaming** (`lib/backup_streaming.sh`): nuevo `STREAMING_RETRIES` (default 3) con backoff exponencial. El pipeline `tar | rclone` ahora reintenta en fallos transitorios.
+- **Captura de stderr de rclone** (`lib/backup_streaming.sh`): el error real de rclone se loguea con detalle, incluyendo detección de cuota GDrive (`rateLimitExceeded`/`quotaExceeded`/`403`).
+- **Nuevas exclusiones default**: `muclh/*`, `lock/*`, `h5plib/*`, `*.log` agregados a `MOODLEDATA_EXCLUDES` en template y wizard.
+
+### Fixed
+- **Exclusiones rotas de tar** (`lib/backup_streaming.sh`): patrones `--exclude` con `/` ahora reciben prefijo `$(basename "$SRC_DATA")/` (ej: `cache/*` → `moodledata_data/cache/*`). Las exclusiones realmente funcionan ahora.
+- **Cleanup destructivo en streaming** (`lib/backup_streaming.sh`): `_run_phase2_cleanup` preserva archivos parciales en cloud si tienen datos. Ya no se pierden backups ~99% completos por errores de finalización.
+- **`export BOLD=''`** (`lib/utils.sh`): corregido bug documentado (`BOLD=''` sin export).
+
 ## [Unreleased]
 
 _Proximas mejoras pendientes._
@@ -170,7 +182,8 @@ _Proximas mejoras pendientes._
 - Arquitectura modular: 7 librerías independientes extraídas de scripts monolíticos
 - Instalación en `/opt/moodle-backup/` con symlink `/usr/local/bin/mb`
 
-[Unreleased]: https://github.com/gzlo/moodle-backup/compare/v5.0.6...HEAD
+[Unreleased]: https://github.com/gzlo/moodle-backup/compare/v5.1.0...HEAD
+[5.1.0]: https://github.com/gzlo/moodle-backup/compare/v5.0.6...v5.1.0
 [5.0.6]: https://github.com/gzlo/moodle-backup/compare/v5.0.5...v5.0.6
 [5.0.5]: https://github.com/gzlo/moodle-backup/compare/v5.0.4...v5.0.5
 [5.0.4]: https://github.com/gzlo/moodle-backup/compare/v5.0.3...v5.0.4

@@ -458,7 +458,7 @@ CRON_SCHEDULE="7"
 RETENTION_COPIES="2"
 
 # Exclusiones para moodledata streaming
-MOODLEDATA_EXCLUDES="cache/* sessions/* temp/* trashdir/*"
+MOODLEDATA_EXCLUDES="cache/* localcache/* muclh/* lock/* temp/* sessions/* trashdir/* backup/* h5plib/* *.tmp *.lock *.log"
 
 # Usuario del sistema
 SYSTEM_USER="${system_user}"
