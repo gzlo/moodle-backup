@@ -84,7 +84,7 @@ run_full_backup() {
     local start_time
     start_time=$(date +%s)
     RUN_ID="${INSTANCE_NAME}_$(date +%Y%m%d_%H%M%S)_$$"
-    ORCHESTRATOR_LOG="/tmp/backup_orquestador_${RUN_ID}.log"
+    ORCHESTRATOR_LOG="/var/log/moodle-backup/orchestrator_${RUN_ID}.log"
 
     # Rotar logs antiguos
     rotate_logs "/var/log/moodle-backup" "${LOG_RETENTION_DAYS:-30}"
@@ -122,13 +122,9 @@ run_full_backup() {
     fi
 
     acquire_lock "$INSTANCE_NAME" || return 1
-    ORCHESTRATOR_SUCCESS=false
     # shellcheck disable=SC2329,SC2317
     _orchestrator_cleanup() {
         release_lock "$INSTANCE_NAME"
-        if [ "$ORCHESTRATOR_SUCCESS" != "true" ]; then
-            rm -f "$ORCHESTRATOR_LOG" 2>/dev/null || true
-        fi
     }
     trap _orchestrator_cleanup EXIT
 
@@ -185,15 +181,36 @@ run_full_backup() {
     log_message "INFO" "Fase 2: $phase2_result"
     
     if [ "$phase1_success" = true ] && [ "$phase2_success" = true ]; then
-        ORCHESTRATOR_SUCCESS=true
         write_heartbeat "$INSTANCE_NAME" "success" "$total_elapsed" "$phase1_result" "$phase2_result"
         log_message "SUCCESS" "====== BACKUP COMPLETO EXITOSO ======"
         send_final_notification "true" "$phase1_result" "$phase2_result" "$total_elapsed"
+        _upload_backup_logs "$config_name"
         return 0
     else
         write_heartbeat "$INSTANCE_NAME" "failed" "$total_elapsed" "$phase1_result" "$phase2_result"
         log_message "ERROR" "====== BACKUP COMPLETO CON ERRORES ======"
         send_final_notification "false" "$phase1_result" "$phase2_result" "$total_elapsed"
+        _upload_backup_logs "$config_name"
         return 1
     fi
+}
+
+# Subir logs del backup a cloud storage (orquestador + fases)
+_upload_backup_logs() {
+    local config_name="$1"
+    local logs_cloud_path="${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/${INSTANCE_NAME}/logs"
+
+    if [ -n "$ORCHESTRATOR_LOG" ] && [ -f "$ORCHESTRATOR_LOG" ]; then
+        rclone copy "$ORCHESTRATOR_LOG" "$logs_cloud_path/" 2>/dev/null || true
+    fi
+
+    local today
+    today=$(date +%d-%m-%Y)
+    local backup_dir="${BACKUP_BASE:-/root/moodle_backups}/${INSTANCE_NAME}/${today}"
+    for log_file in "$backup_dir"/*.log; do
+        [ -f "$log_file" ] || continue
+        rclone copy "$log_file" "$logs_cloud_path/" 2>/dev/null || true
+    done
+
+    log_message "INFO" "Logs subidos a cloud: $logs_cloud_path"
 }

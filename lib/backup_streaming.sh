@@ -289,16 +289,27 @@ run_phase2() {
         log_message "SUCCESS" "=== FASE 2 COMPLETADA ($elapsed) ==="
         send_phase2_success "$elapsed" "$final_size" "$PHASE2_CLOUD_PATH"
         _run_phase2_cleanup
+        _upload_phase2_log "$log_file"
         pop_log
         return 0
     else
         local elapsed
         elapsed=$(get_elapsed_time "$start_time")
-        send_phase2_error "Verificación falló" "$elapsed"
+        send_phase2_error "Fallo streaming" "$elapsed"
         _run_phase2_cleanup
+        _upload_phase2_log "$log_file"
         pop_log
         return 1
     fi
+}
+
+# Subir log de Fase 2 a cloud
+_upload_phase2_log() {
+    local log_file="$1"
+    [ -f "$log_file" ] || return
+    local logs_cloud_path="${CLOUD_REMOTE}:${CLOUD_BASE_PATH}/${INSTANCE_NAME}/logs"
+    mkdir -p "$(dirname "$log_file")"
+    rclone copy "$log_file" "$logs_cloud_path/" 2>/dev/null || true
 }
 
 # Cleanup explícito de Fase 2 (sin trap EXIT para no sobrescribir el del orquestador)

@@ -284,6 +284,17 @@ STREAMING_RETRIES="3"
 MB_LANG="auto"
 
 # =============================================================================
+# CONFIGURACIÓN DE ACTUALIZACIONES
+# =============================================================================
+
+# Repositorio de GitHub para el modulo de actualización
+# Formato: "usuario/repositorio"
+UPDATE_REPO="gzlo/moodle-backup"
+
+# Directorio donde se guardan los backups de configuracion antes de actualizar
+UPDATE_STATE_DIR="/var/lib/moodle-backup"
+
+# =============================================================================
 # CONFIGURACIÓN DE LOGGING
 # =============================================================================
 

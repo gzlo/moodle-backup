@@ -52,6 +52,15 @@ log_message() {
     fi
 }
 
+# Extraer lineas ERROR/WARNING de un archivo de log (para incluir en emails)
+extract_log_errors() {
+    local log_file="$1"
+    local max_lines="${2:-10}"
+    if [ -f "$log_file" ] && [ -s "$log_file" ]; then
+        grep -E '\[ERROR\]|\[WARNING\]' "$log_file" 2>/dev/null | tail -n "$max_lines"
+    fi
+}
+
 # Rotar logs antiguos (mantener N días)
 rotate_logs() {
     local log_dir="$1"

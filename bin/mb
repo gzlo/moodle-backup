@@ -6,7 +6,7 @@
 # streaming a cloud storage, y notificaciones por email.
 #
 # Instalación: /usr/local/bin/mb → /opt/moodle-backup/bin/mb
-# Versión: 5.1.0
+# Versión: 5.2.0
 # =============================================================================
 
 set -euo pipefail
@@ -17,7 +17,7 @@ MB_INSTALL_DIR="${MB_INSTALL_DIR:-$(cd "$(dirname "$MB_SCRIPT_PATH")/.." 2>/dev/
 export MB_INSTALL_DIR
 
 # Cargar librerías
-for lib in utils logging config notifications notifications_webhook backup_maintenance backup_streaming backup_orchestrator server_detect backup_lock backup_encryption backup_incremental i18n; do
+for lib in utils logging config notifications notifications_webhook backup_maintenance backup_streaming backup_orchestrator server_detect backup_lock backup_encryption backup_incremental update i18n; do
     if [ -f "${MB_INSTALL_DIR}/lib/${lib}.sh" ]; then
         # shellcheck disable=SC1090
         source "${MB_INSTALL_DIR}/lib/${lib}.sh"
@@ -64,7 +64,9 @@ show_help() {
   ${BLUE}test <config>${NC}           $(_ cmd_test)
   ${BLUE}test-email <config>${NC}     $(_ cmd_test_email)
   ${BLUE}cron${NC}                    $(_ cmd_cron)
-  ${BLUE}health <config>${NC}         $(_ cmd_health)
+      ${BLUE}health <config>${NC}         $(_ cmd_health)
+    ${BLUE}update check <config>${NC}   $(_ cmd_update_check)
+    ${BLUE}update install <config>${NC} $(_ cmd_update_install)
 
 ${YELLOW}━━━ $(_ title_config) ━━━${NC}
   ${BLUE}moodlesite list${NC}             $(_ cmd_ms_list)
@@ -306,6 +308,24 @@ case "$COMMAND" in
             2) show_message "warning" "Nunca se ha ejecutado un backup para '$INSTANCE_NAME'" ;;
         esac
         exit $hb_exit
+        ;;
+    update)
+        update_subcmd="${1:-check}"
+        case "$update_subcmd" in
+            check)
+                run_update_check "${2:-}"
+                ;;
+            install)
+                run_update_install "${2:-}"
+                ;;
+            rollback)
+                run_update_rollback
+                ;;
+            *)
+                show_message "error" "Uso: mb update {check|install|rollback} [config]"
+                exit 1
+                ;;
+        esac
         ;;
     *)
         show_message "error" "$(_ err_unknown_cmd): $COMMAND"

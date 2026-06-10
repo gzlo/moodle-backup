@@ -19,6 +19,19 @@ Este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 - **Trap EXIT anidado sobrescribe lock release** (`lib/backup_streaming.sh`): eliminado `trap _phase2_cleanup EXIT` que reemplazaba al trap del orquestador. Reemplazado por cleanup explícito (`_run_phase2_cleanup`) antes de cada `return`, asegurando que `release_lock` siempre se ejecute.
 - **rotate_logs nunca llamada** (`lib/backup_orchestrator.sh`): `rotate_logs` ahora se invoca al inicio de `run_full_backup` para logs locales y de backup.
 
+## [5.2.0] - 2026-06-10
+
+### Added
+- **Módulo de auto-update** (`lib/update.sh`): nuevo comando `mb update {check|install|rollback}`. Consulta GitHub Releases, descarga source tarball, respalda configs, instala y verifica. Compatible con cualquier Linux.
+- **Cron de verificación de updates** (`scripts/update_check.sh`): script para crontab que ejecuta `mb update check <config>` y envía email si hay nueva versión. Uso: `0 6 * * 1 /opt/moodle-backup/scripts/update_check.sh academia`
+- **Logs persistidos en cloud** (`lib/backup_orchestrator.sh`, `lib/backup_streaming.sh`): los logs de orquestador, Fase 1 y Fase 2 ahora se suben a `${CLOUD_BASE_PATH}/<instancia>/logs/` después de cada backup. El log del orquestador ya no se borra en fallos.
+- **Log del orquestador en `/var/log/moodle-backup/`** (`lib/backup_orchestrator.sh`): movido de `/tmp/` a `/var/log/moodle-backup/orchestrator_*.log`. Persiste entre reinicios del servidor.
+- **Errores reales en emails** (`lib/notifications.sh`): `send_phase1_error`, `send_phase2_error` y `send_final_notification` ahora extraen las líneas ERROR/WARNING del log y las incluyen en el cuerpo del email. `send_update_notification` para notificar updates disponibles.
+
+### Fixed
+- **Log del orquestador eliminado en fallos** (`lib/backup_orchestrator.sh`): el trap EXIT ya no borra `ORCHESTRATOR_LOG`. Los logs siempre se preservan.
+- **Notificaciones sin contexto de error**: los emails de error ahora incluyen las últimas 10 líneas ERROR/WARNING extraídas del log real.
+
 ## [5.1.0] - 2026-06-10
 
 ### Added
@@ -182,7 +195,8 @@ _Proximas mejoras pendientes._
 - Arquitectura modular: 7 librerías independientes extraídas de scripts monolíticos
 - Instalación en `/opt/moodle-backup/` con symlink `/usr/local/bin/mb`
 
-[Unreleased]: https://github.com/gzlo/moodle-backup/compare/v5.1.0...HEAD
+[Unreleased]: https://github.com/gzlo/moodle-backup/compare/v5.2.0...HEAD
+[5.2.0]: https://github.com/gzlo/moodle-backup/compare/v5.1.0...v5.2.0
 [5.1.0]: https://github.com/gzlo/moodle-backup/compare/v5.0.6...v5.1.0
 [5.0.6]: https://github.com/gzlo/moodle-backup/compare/v5.0.5...v5.0.6
 [5.0.5]: https://github.com/gzlo/moodle-backup/compare/v5.0.4...v5.0.5

@@ -92,6 +92,10 @@ _load_es() {
         ["subject_progress"]="[INFO] Backup Moodle - %s - %s"
         ["subject_final_ok"]="[EXITO] Backup Completo TERMINADO - %s"
         ["subject_final_error"]="[ERROR] Backup Completo FALLO - %s"
+        ["subject_update"]="[UPDATE] Nueva version disponible - Moodle Backup CLI - %s"
+        ["cmd_update"]="Gestionar actualizaciones desde GitHub"
+        ["cmd_update_check"]="Verificar si hay nueva version disponible"
+        ["cmd_update_install"]="Instalar la ultima version desde GitHub"
     )
 }
 
@@ -151,5 +155,9 @@ _load_en() {
         ["subject_progress"]="[INFO] Moodle Backup - %s - %s"
         ["subject_final_ok"]="[SUCCESS] Full Backup COMPLETED - %s"
         ["subject_final_error"]="[ERROR] Full Backup FAILED - %s"
+        ["subject_update"]="[UPDATE] New version available - Moodle Backup CLI - %s"
+        ["cmd_update"]="Manage GitHub updates"
+        ["cmd_update_check"]="Check if a new version is available"
+        ["cmd_update_install"]="Install the latest version from GitHub"
     )
 }

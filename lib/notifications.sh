@@ -339,18 +339,23 @@ Moodle Backup CLI v${MB_VERSION:-4.x}"
 
 # Notificación de error para Fase 1 (BD + App)
 send_phase1_error() {
-    local error_msg="$1" elapsed="$2"
+    local error_msg="$1" elapsed="$2" error_detail="${3:-}"
     local subject
     # shellcheck disable=SC2059
     # shellcheck disable=SC2059
     subject=$(printf "$(_ subject_phase1_error)" "$SERVER_NAME")
-    
+
     local log_ref="${ORCHESTRATOR_LOG:-${MB_LOG_FILE:-N/A}}"
+    local log_errors=""
+    if [ -n "$log_ref" ] && [ -f "$log_ref" ]; then
+        log_errors=$(extract_log_errors "$log_ref" 5)
+    fi
+
     local body
-    body="BACKUP MOODLE FALLIDO - $(date)
+    body="BACKUP ${INSTANCE_NAME} MOODLE FALLIDO - $(date)
 
 Detalles del Error:
-$error_msg
+${error_msg}${error_detail:+ - $error_detail}
 
 Información del Sistema:
 - Servidor: ${SERVER_NAME}
@@ -358,11 +363,13 @@ Información del Sistema:
 - Directorio App: ${SRC_APP}
 - Base de datos: ${DB_NAME}
 - Tiempo transcurrido: $elapsed
-- Fecha/Hora: $(date)
 
 Run ID: ${RUN_ID:-N/A}
 Log: $log_ref
+${log_errors:+
 
+Errores en log:
+${log_errors}}
 ---
 Sistema de Backup Automatizado ${SERVER_NAME}"
 
@@ -378,7 +385,7 @@ send_phase1_success() {
     local subject
     # shellcheck disable=SC2059
     subject=$(printf "$(_ subject_phase1_ok)" "$SERVER_NAME")
-    
+
     local log_ref="${ORCHESTRATOR_LOG:-${MB_LOG_FILE:-N/A}}"
     local body
     body="BACKUP ${INSTANCE_NAME} COMPLETADO - $(date)
@@ -407,17 +414,22 @@ Sistema de Backup Automatizado ${SERVER_NAME}"
 
 # Notificación de error para Fase 2 (Streaming)
 send_phase2_error() {
-    local error_msg="$1" elapsed="$2"
+    local error_msg="$1" elapsed="$2" error_detail="${3:-}"
     local subject
     # shellcheck disable=SC2059
     subject=$(printf "$(_ subject_phase2_error)" "$SERVER_NAME")
-    
+
     local log_ref="${ORCHESTRATOR_LOG:-${MB_LOG_FILE:-N/A}}"
+    local log_errors=""
+    if [ -n "$log_ref" ] && [ -f "$log_ref" ]; then
+        log_errors=$(extract_log_errors "$log_ref" 5)
+    fi
+
     local body
     body="BACKUP ${INSTANCE_NAME} MOODLEDATA FALLIDO - $(date)
 
 Detalles del Error:
-$error_msg
+${error_msg}${error_detail:+ - $error_detail}
 
 Información:
 - Servidor: ${SERVER_NAME}
@@ -427,7 +439,10 @@ Información:
 
 Run ID: ${RUN_ID:-N/A}
 Log: $log_ref
+${log_errors:+
 
+Errores en log:
+${log_errors}}
 ---
 Sistema de Backup Automatizado ${SERVER_NAME}"
 
@@ -512,12 +527,12 @@ send_final_notification() {
     fi
     
     local log_ref="${ORCHESTRATOR_LOG:-${MB_LOG_FILE:-N/A}}"
-    local log_tail=""
+    local log_errors=""
     if [ -n "$log_ref" ] && [ -f "$log_ref" ]; then
-        log_tail=$(tail -5 "$log_ref" 2>/dev/null || echo "N/A")
+        log_errors=$(extract_log_errors "$log_ref" 10)
     fi
     local body
-    body="BACKUP MOODLE COMPLETO - $status - $(date)
+    body="BACKUP ${INSTANCE_NAME} COMPLETO - $status - $(date)
 
 Resumen:
 - Fase 1 (BD + App): $phase1_result
@@ -528,11 +543,11 @@ Run ID: ${RUN_ID:-N/A}
 Servidor: ${SERVER_NAME}
 Instancia: ${INSTANCE_NAME}
 
-Últimas líneas del log:
-$log_tail
-
 Log completo: $log_ref
+${log_errors:+
 
+Últimos errores del log:
+${log_errors}}
 ---
 Sistema de Backup Automatizado ${SERVER_NAME}"
 
@@ -546,4 +561,32 @@ Sistema de Backup Automatizado ${SERVER_NAME}"
             _notify_webhooks "final_error" "Completo" "Fase 1: $phase1_result | Fase 2: $phase2_result" "$elapsed" || true
         fi
     fi
+}
+
+# ─── NOTIFICACIÓN DE UPDATE ───────────────────────────────────────────────────
+
+# Notificar que hay una nueva versión disponible
+send_update_notification() {
+    local current_ver="$1" new_ver="$2" release_url="$3"
+    local subject
+    # shellcheck disable=SC2059
+    subject=$(printf "$(_ subject_update)" "$SERVER_NAME")
+
+    local body
+    body="ACTUALIZACIÓN DISPONIBLE - Moodle Backup CLI - $(date)
+
+Versión actual: v${current_ver}
+Nueva versión: v${new_ver}
+
+Descargar: ${release_url}
+
+Para actualizar:
+  mb update install ${INSTANCE_NAME}
+
+---
+Sistema de Backup Automatizado ${SERVER_NAME}
+Moodle Backup CLI v${current_ver}"
+
+    send_email "$subject" "$body" "$NOTIFICATION_EMAIL"
+    log_message "INFO" "Notificación de update enviada a: $NOTIFICATION_EMAIL"
 }
