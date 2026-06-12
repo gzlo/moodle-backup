@@ -75,7 +75,7 @@ perform_streaming_backup() {
 
     # Construir pipeline completo
     # shellcheck disable=SC2155
-    local tar_cmd="tar $exclude_params -czf - -C $(dirname "$SRC_DATA") $(basename "$SRC_DATA")/ 2>>\"${MB_LOG_FILE:-/dev/null}\""
+    local tar_cmd="tar --warning=no-file-changed $exclude_params -czf - -C $(dirname "$SRC_DATA") $(basename "$SRC_DATA")/ 2>>\"${MB_LOG_FILE:-/dev/null}\""
     local _pipeline_cmd
 
     if [ "$encrypt" = "true" ] && [ -n "$gpg_pass" ]; then
@@ -145,6 +145,16 @@ perform_streaming_backup() {
 
     # Limpiar passfile GPG
     [ -n "$_gpg_clean" ] && rm -f "$_gpg_clean"
+
+    # Verificar existencia real en cloud si el pipeline fallo (tar warning -> exit 1)
+    if [ "$_stream_ok" != "true" ] && [ -n "$cloud_path" ]; then
+        local _cloud_size
+        _cloud_size=$(rclone size --json "$cloud_path" 2>/dev/null | sed -n 's/.*"bytes":[[:space:]]*\([0-9]*\).*/\1/p')
+        if [ -n "$_cloud_size" ] && [ "$_cloud_size" -gt 0 ]; then
+            log_message "WARNING" "Pipeline fallo (exit $_rc) pero archivo existe en cloud (${_cloud_size} bytes). Marcando como exito."
+            _stream_ok=true
+        fi
+    fi
 
     if [ "$_stream_ok" = true ]; then
         if [ -n "$checksum_file" ]; then
@@ -316,10 +326,12 @@ _upload_phase2_log() {
 _run_phase2_cleanup() {
     rm -f "$PHASE2_PID_FILE" "$PHASE2_CHECKSUM_FILE"
     if [ "${PHASE2_SUCCESS:-false}" != "true" ] && [ -n "$PHASE2_CLOUD_PATH" ]; then
-        if rclone ls "$PHASE2_CLOUD_PATH" 2>/dev/null | grep -q .; then
-            log_message "WARNING" "Archivo parcial preservado en cloud (existe con datos, no se elimina): $PHASE2_CLOUD_PATH"
+        local _cloud_size
+        _cloud_size=$(rclone size --json "$PHASE2_CLOUD_PATH" 2>/dev/null | sed -n 's/.*"bytes":[[:space:]]*\([0-9]*\).*/\1/p')
+        if [ -n "$_cloud_size" ] && [ "$_cloud_size" -gt 0 ]; then
+            log_message "WARNING" "Archivo existe en cloud con ${_cloud_size} bytes. No se elimina: $PHASE2_CLOUD_PATH"
         else
-            log_message "WARNING" "Limpiando archivo parcial en cloud: $PHASE2_CLOUD_PATH"
+            log_message "WARNING" "Limpiando archivo parcial/vacio en cloud: $PHASE2_CLOUD_PATH"
             rclone delete "$PHASE2_CLOUD_PATH" 2>/dev/null || true
         fi
         rclone delete "${PHASE2_CLOUD_PATH}.sha256" 2>/dev/null || true

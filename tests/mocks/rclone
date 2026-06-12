@@ -16,6 +16,18 @@ case "$1" in
     lsf) echo "test-backup.tar.gz" ;;
     cat) echo "mock-file-content" ;;
     rcat) cat >/dev/null ;;
+    size)
+        case "$2" in
+            --json)
+                if [ "${MOCK_RCLONE_SIZE_ZERO:-false}" = "true" ]; then
+                    echo '{"bytes": 0, "count": 0, "isDir": false}'
+                else
+                    echo '{"bytes": 5000000000, "count": 1, "isDir": false}'
+                fi
+                ;;
+            *) echo "Total size: 5 GByte" ;;
+        esac
+        ;;
     delete) true ;;
     mkdir) true ;;
     purge) true ;;

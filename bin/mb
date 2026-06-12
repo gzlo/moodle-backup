@@ -6,7 +6,7 @@
 # streaming a cloud storage, y notificaciones por email.
 #
 # Instalación: /usr/local/bin/mb → /opt/moodle-backup/bin/mb
-# Versión: 5.2.0
+# Versión: 5.3.0
 # =============================================================================
 
 set -euo pipefail

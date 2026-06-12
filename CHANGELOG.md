@@ -44,9 +44,22 @@ Este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 - **Cleanup destructivo en streaming** (`lib/backup_streaming.sh`): `_run_phase2_cleanup` preserva archivos parciales en cloud si tienen datos. Ya no se pierden backups ~99% completos por errores de finalización.
 - **`export BOLD=''`** (`lib/utils.sh`): corregido bug documentado (`BOLD=''` sin export).
 
-## [Unreleased]
+## [5.3.0] - 2026-06-12
 
-_Proximas mejoras pendientes._
+### Fixed
+
+- **Cascada de fallos en streaming** (`lib/backup_streaming.sh`): tres correcciones que rompen la cadena de errores que causaba la pérdida de backups de moodledata (~800GB) a pesar de haberse subido completamente a Google Drive:
+
+  1. **`--warning=no-file-changed` en tar** (`lib/backup_streaming.sh:78`): GNU tar 1.30 retorna exit code 1 cuando detecta cambios concurrentes ("file changed as we read it") durante el streaming de ~9h. Con `set -o pipefail`, esto mataba todo el pipeline aunque `rclone rcat` hubiera completado la subida exitosamente. El flag suprime el warning y tar retorna 0 siempre.
+
+  2. **Verificación real post-pipeline** (`lib/backup_streaming.sh:149-157`): si el pipeline falló (exit != 0) pero `rclone size --json` confirma que el archivo existe en cloud con datos, se marca como éxito en lugar de propagar el falso negativo. Aísla la detección de éxito real del exit code del pipeline.
+
+  3. **Cleanup no destructivo** (`lib/backup_streaming.sh:326-339`): `_run_phase2_cleanup` reescrito. Reemplaza `rclone ls` (inconsistente con archivos) por `rclone size --json`. **Nunca** borra un archivo si tiene `size > 0`, aunque `PHASE2_SUCCESS` sea `false`. El .sha256 sigue eliminándose siempre.
+
+### Added
+
+- **Tests de `_run_phase2_cleanup`** (`tests/unit/test_backup_streaming.bats`): 7 tests unitarios que verifican preservación de archivo en cloud, borrado condicional, noop con `PHASE2_SUCCESS=true`, limpieza de .sha256, y manejo de paths vacíos.
+- **Mock `rclone size --json`** (`tests/mocks/rclone`): nuevo subcomando `size` con output JSON configurable vía `MOCK_RCLONE_SIZE_ZERO`.
 
 ## [5.0.5] - 2026-05-29
 
@@ -195,7 +208,8 @@ _Proximas mejoras pendientes._
 - Arquitectura modular: 7 librerías independientes extraídas de scripts monolíticos
 - Instalación en `/opt/moodle-backup/` con symlink `/usr/local/bin/mb`
 
-[Unreleased]: https://github.com/gzlo/moodle-backup/compare/v5.2.0...HEAD
+[Unreleased]: https://github.com/gzlo/moodle-backup/compare/v5.3.0...HEAD
+[5.3.0]: https://github.com/gzlo/moodle-backup/compare/v5.2.0...v5.3.0
 [5.2.0]: https://github.com/gzlo/moodle-backup/compare/v5.1.0...v5.2.0
 [5.1.0]: https://github.com/gzlo/moodle-backup/compare/v5.0.6...v5.1.0
 [5.0.6]: https://github.com/gzlo/moodle-backup/compare/v5.0.5...v5.0.6
